@@ -4,8 +4,7 @@
 // GET  ?desde=REV                                      → mudanças desde a revisão REV (para atualizar a tela)
 // POST {op:"set"|"update"|"delete", path, data}        → grava (contribuidor ou dono)
 // POST {op:"importar", itens:[{path,col,id,data}]}     → carga inicial (dono)
-const { redis, pipeline, hashParaObj, P, exigeMembro, podeEscrever, corpoJson, rota } = require("./_lib");
-const MAX_MUD = 3000;
+const { redis, pipeline, hashParaObj, P, exigeMembro, podeEscrever, corpoJson, rota, registraMudanca, MAX_MUD } = require("./_lib");
 
 // a Caixa de entrada cresce todo dia: guarda por mês (id = canal_AAAA-MM-DD_origem)
 const chaveCol = (col, id) => (col === "caixa" ? `${P}col:caixa:${String(id).split("_")[1]?.slice(0, 7) || "sem-data"}` : `${P}col:${col}`);
@@ -23,13 +22,6 @@ function mesesDesde(valor) {
   if (isNaN(d)) d = new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth() - 3, 1));
   while (d <= hoje && out.length < 36) { out.push(d.toISOString().slice(0, 7)); d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)); }
   return out;
-}
-async function registraMudanca(paths) {
-  const rev = await redis("INCRBY", P + "rev", paths.length);
-  const cmds = paths.map((p, i) => ["ZADD", P + "mudancas", rev - paths.length + 1 + i, p]);
-  cmds.push(["ZREMRANGEBYRANK", P + "mudancas", 0, -(MAX_MUD + 1)]);
-  await pipeline(cmds);
-  return rev;
 }
 async function comTrava(path, fn) {
   const trava = P + "trava:" + path;

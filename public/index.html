@@ -1917,13 +1917,16 @@ function renderSync() {
         <div class="sbar imp" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="sImpBar"><span style="width:0%"></span></div>
         <div class="sync-m"><span class="mono" id="sImpTxt"></span><b class="mono" id="sImpPct"></b></div><div class="sync-m" id="sImpMsg"></div>`;
     }
-    const pct = imp.total ? Math.round((imp.feito / imp.total) * 100) : 0;
-    $("sImpBar").firstElementChild.style.width = pct + "%"; $("sImpBar").setAttribute("aria-valuenow", pct);
-    $("sImpTxt").textContent = `${imp.feito} de ${imp.total} registros`; $("sImpPct").textContent = pct + "%";
-    const fimOk = imp.fim && !imp.erro;
+    const mon = imp.tipo === "monday", fimOk = imp.fim && !imp.erro;
+    const pct = imp.procurando ? 12 : imp.total ? Math.round((imp.feito / imp.total) * 100) : fimOk ? 100 : 0;
+    $("sImpBar").firstElementChild.style.width = pct + "%"; $("sImpBar").setAttribute("aria-valuenow", pct); $("sImpBar").classList.toggle("imp", !imp.fim);
+    $("sImpBar").firstElementChild.style.background = imp.fim ? (imp.erro ? "var(--warn)" : "var(--ok)") : "";
+    $("sImpTxt").textContent = imp.procurando ? `${imp.total} novo(s) até agora` : `${imp.feito} de ${imp.total} ${imp.unidade || "registros"}`; $("sImpPct").textContent = imp.procurando ? "" : pct + "%";
     $("sDot").className = "dot " + (imp.erro && imp.fim ? "warn" : fimOk ? "ok" : "run");
-    $("sTit").textContent = fimOk ? "Importação concluída" : imp.fim ? "Importação interrompida" : "Importando dados do Monday";
-    const m = $("sImpMsg"); m.textContent = imp.erro || (fimOk ? "Tudo carregado." : imp.arquivo ? `Lendo ${imp.arquivo}` : ""); m.className = "sync-m" + (imp.erro ? " err" : "");
+    $("sTit").textContent = fimOk ? (mon ? "Sincronização concluída" : "Importação concluída") : imp.fim ? (mon ? "Sincronização interrompida" : "Importação interrompida") : (imp.titulo || "Importando dados do Monday");
+    const m = $("sImpMsg");
+    m.textContent = imp.erro || (fimOk ? (mon ? (imp.adicionados ? `${imp.adicionados} fundo(s) novo(s) na Caixa de entrada.` : "Nenhum fundo novo no Monday.") : "Tudo carregado.") : imp.arquivo ? (mon ? imp.arquivo : `Lendo ${imp.arquivo}`) : "");
+    m.className = "sync-m" + (imp.erro ? " err" : "");
     return;
   }
   const { total, c } = contagemEtapas(), con = estadoConexao();
@@ -1932,6 +1935,7 @@ function renderSync() {
     el.innerHTML = `<div class="sync-h"><span class="dot ${con.k}"></span><b>Dados do Monday</b><span class="hint">${esc(con.t)}</span></div>
       <span class="hint">${S.loaded ? "Nenhum fundo carregado ainda." : "Carregando…"}</span>
       ${S.loaded && window.pbc && S.isOwner ? `<button class="btn sm pri" data-go="config" data-sec="dados">${ic("upload", 14)}Importar dados</button>` : ""}`;
+    delete el.dataset.monday;
     return;
   }
   if (el.dataset.modo !== "base") {
@@ -1940,8 +1944,14 @@ function renderSync() {
       <div class="sync-num"><b id="sPct">0%</b><span id="sTot"></span></div>
       <div class="sbar" id="sBar" role="img">${ETAPAS.map((e) => `<span data-k="${e.k}" style="width:0;background:${e.c}"></span>`).join("")}</div>
       <div class="sync-leg" id="sLeg"></div>
-      <div class="sync-m"><span id="sMsg"></span><b id="sCon"></b></div>`;
+      <div class="sync-m"><span id="sMsg"></span><b id="sCon"></b></div><div id="sMon"></div>`;
   }
+  const mon = $("sMon"), podeMon = window.pbc && window.pbc.config().monday && S.canWrite, chaveMon = (podeMon ? 1 : 0) + "|" + (S.mondayInfo?.ultima || "");
+  if (mon && mon.dataset.k !== chaveMon) {
+    mon.dataset.k = chaveMon;
+    mon.innerHTML = podeMon ? `<div class="sync-m" style="border-top:1px solid var(--line-2);padding-top:7px;align-items:center"><span id="sMonT"></span><button class="btn sm" data-act="monday-sync" title="Acrescenta os fundos que estão no Monday e ainda não estão aqui">${ic("refresh", 13)}Buscar novos</button></div>` : "";
+  }
+  if ($("sMonT")) $("sMonT").textContent = S.mondayInfo?.ultima ? `Monday lido ${ha(Date.parse(S.mondayInfo.ultima))}` : "Monday ainda não lido";
   const pct = Math.round((c.done / total) * 100);
   $("sPct").textContent = (c.done && pct < 1 ? "<1" : pct) + "%"; $("sTot").textContent = `concluídos · ${c.done} de ${total}`;
   for (const sp of $("sBar").children) sp.style.width = (c[sp.dataset.k] / total) * 100 + "%";
@@ -1960,6 +1970,7 @@ setInterval(() => { const m = $("sMsg"); if (m && !SYNC.erro) m.textContent = te
 window.addEventListener("pbc:sync", (e) => { Object.assign(SYNC, e.detail); renderSync(); if (S.view.name === "config" && S.view.sec === "dados") atualizaDadosUI(); });
 window.addEventListener("pbc:import", (e) => {
   SYNC.imp = e.detail; renderSync(); atualizaImportUI();
+  if (e.detail.fim && e.detail.tipo === "monday" && S.view.name === "config") render();
   if (e.detail.fim) setTimeout(() => { if (SYNC.imp === e.detail) { SYNC.imp = null; renderSync(); atualizaImportUI(); } }, e.detail.erro ? 12000 : 5000);
 });
 window.addEventListener("pbc:membros", () => { if (S.view.name === "config") render(); });
@@ -1973,8 +1984,9 @@ function importBox() {
     <div class="imp-prog" id="impProg" aria-live="polite"></div>`;
 }
 function atualizaImportUI() {
+  const mon = $("monProg"); if (mon) atualizaMondayUI(mon);
   const el = $("impProg"); if (!el) return;
-  const i = SYNC.imp;
+  const i = SYNC.imp && SYNC.imp.tipo !== "monday" ? SYNC.imp : null;
   if (!i) { el.innerHTML = ""; return; }
   const pct = i.total ? Math.round((i.feito / i.total) * 100) : 0, fimOk = i.fim && !i.erro;
   if (!el.querySelector(".sbar")) el.innerHTML = `<div class="sbar imp"><span style="width:0%"></span></div><div class="row between"><span class="mono" data-t></span><b class="mono" data-p></b></div><span data-m></span>`;
@@ -1984,6 +1996,23 @@ function atualizaImportUI() {
   el.querySelector("[data-p]").textContent = pct + "%";
   const m = el.querySelector("[data-m]"); m.textContent = i.erro || (fimOk ? `Importação concluída e conferida no servidor${i.conferido ? " (" + i.conferido + ")" : ""}. Os dados já estão na tela de todos.` : "Mantenha esta aba aberta até terminar.");
   m.style.color = i.erro ? "var(--warn)" : fimOk ? "var(--ok)" : "var(--muted)";
+}
+function atualizaMondayUI(el) {
+  const i = SYNC.imp && SYNC.imp.tipo === "monday" ? SYNC.imp : null;
+  if (!i) { el.innerHTML = ""; return; }
+  const fimOk = i.fim && !i.erro, pct = i.procurando ? 12 : i.total ? Math.round((i.feito / i.total) * 100) : fimOk ? 100 : 0;
+  el.innerHTML = `<div class="sbar ${i.fim ? "" : "imp"}"><span style="width:${pct}%;background:${i.erro && i.fim ? "var(--warn)" : fimOk ? "var(--ok)" : "var(--accent)"}"></span></div>
+    <div class="row between"><span class="mono">${i.procurando ? `${i.total} fundo(s) novo(s) encontrados até agora` : `${i.feito} de ${i.total} fundos novos`}</span><b class="mono">${i.procurando ? "" : pct + "%"}</b></div>
+    <span style="color:${i.erro ? "var(--warn)" : fimOk ? "var(--ok)" : "var(--muted)"}">${esc(i.erro || (fimOk ? (i.adicionados ? `${i.adicionados} fundo(s) novo(s) foram para a Caixa de entrada de cada administrador.` : "Nenhum fundo novo: tudo o que está em aberto no Monday já está aqui.") : i.arquivo || ""))}</span>
+    ${i.nomes && i.nomes.length ? `<span class="hint">Últimos: ${i.nomes.map(esc).join(" · ")}</span>` : ""}`;
+}
+async function iniciaMonday() {
+  if (!window.pbc) return;
+  if (!window.pbc.config().monday) return toast("Falta cadastrar MONDAY_TOKEN na Vercel.", true);
+  try {
+    const r = await window.pbc.sincronizarMonday();
+    toast(r.adicionados ? `${r.adicionados} fundo(s) novo(s) do Monday na Caixa de entrada` : "Nenhum fundo novo no Monday");
+  } catch (e) { toast("Sincronização: " + (e.message || e), true); }
 }
 async function iniciaImport(lista) {
   const arqs = [...(lista || [])].filter((a) => /\.json$/i.test(a.name));
@@ -2011,7 +2040,7 @@ function cfgSecoes() {
     p && { k: "conta", n: "Minha conta", d: "Perfil, senha e sessão", i: "key" },
     p && { k: "equipe", n: "Equipe e acessos", d: dono ? "Adicionar e gerenciar usuários" : "Quem tem acesso", i: "users" },
     { k: "dados", n: "Dados e sincronização", d: dono && p ? "Status e importação" : "Status da base", i: "db" },
-    p && { k: "integracoes", n: "Integrações", d: "Microsoft e Slack", i: "plug" },
+    p && { k: "integracoes", n: "Integrações", d: "Monday, Microsoft e Slack", i: "plug" },
   ].filter(Boolean);
 }
 function geraSenha() {
@@ -2105,9 +2134,20 @@ function cfgDados() {
     <div class="stat-grid"><div><b>${total}</b><span>Fundos na base</span></div><div><b>${total - c.done}</b><span>Em aberto</span></div><div><b>${S.ctl.size}</b><span>Controles internos</span></div><div><b>${S.cofre && S.cofre !== "negado" ? (S.cofre.itens || []).length : "—"}</b><span>Senhas e logins</span></div></div>
     ${total ? `<div class="sbar" style="height:10px">${ETAPAS.map((e) => `<span style="width:${(c[e.k] / total) * 100}%;background:${e.c}" title="${esc(e.n)}: ${c[e.k]}"></span>`).join("")}</div>
     <div class="row" style="gap:6px 16px">${ETAPAS.map((e) => `<span class="hint" style="display:inline-flex;gap:6px;align-items:center"><i style="width:9px;height:9px;border-radius:2px;background:${e.c}"></i>${esc(e.n)} <b class="mono" style="color:var(--ink)">${c[e.k]}</b></span>`).join("")}</div>` : ""}</div>
+  ${window.pbc ? cfgMonday() : ""}
   ${window.pbc ? `<div class="card cfg-card"><header><div class="row between"><h2>Verificar servidor</h2><button class="btn sm" data-act="diag">${ic("shield", 14)}Verificar agora</button></div>
       <p>Confere a conexão com o banco (Redis) e quantos registros estão gravados de fato no servidor. Use quando algo não aparecer na tela.</p></header><div id="diagOut">${S.diag || ""}</div></div>` : ""}
   ${dono ? `<div class="card cfg-card"><header><h2>Importar dados do Monday</h2><p>Carrega os arquivos <b>docs.json</b> (fundos, controles e histórico) e <b>cofre.json</b> (senhas e logins) exportados. ${total ? "<b>Atenção:</b> importar de novo substitui os registros com o conteúdo do arquivo." : "Use uma vez, na carga inicial."}</p></header>${importBox()}</div>` : ""}`;
+}
+function cfgMonday() {
+  const cfg = window.pbc.config(), info = S.mondayInfo, rodando = SYNC.imp && !SYNC.imp.fim;
+  return `<div class="card cfg-card"><div class="integ"><span class="lg" style="background:#ff3d57">M</span><div>
+    <div class="row between"><h2>Sincronizar com o Monday</h2>${cfg.monday ? `<span class="chip ok">Token configurado</span>` : `<span class="chip">Não configurado</span>`}</div>
+    <span class="hint">Lê os quadros Controle Auditoria 2026, 2025, Eventos e Horizon FIP e <b>acrescenta só os fundos que ainda não existem aqui</b>, com subitens e cartas. Fundos já existentes nunca são alterados, e os grupos “Concluídos” do Monday são ignorados. Cada fundo novo entra na <b>Caixa de entrada</b> do administrador para a equipe classificar.</span>
+    ${cfg.monday ? `<div class="row"><button class="btn pri" data-act="monday-sync"${rodando || !S.canWrite ? " disabled" : ""}>${ic("refresh", 15)}Buscar fundos novos no Monday</button>
+      <span class="hint">${info?.ultima ? `Última leitura ${ha(Date.parse(info.ultima))}, por ${esc(info.porNome || info.por || "")}: ${info.adicionados} novo(s) entre ${info.lidos || "?"} itens lidos.` : "Ainda não sincronizado."}</span></div>`
+      : `<span class="hint">Cadastre o token na Vercel (Settings → Environment Variables) como <span class="mono">MONDAY_TOKEN</span> e faça Redeploy. O token fica só no servidor. No Monday: foto do perfil → Developers → My access tokens.</span>`}
+    <div class="imp-prog" id="monProg" aria-live="polite"></div></div></div></div>`;
 }
 function atualizaDadosUI() {
   const d = $("dDot"); if (!d) return; const con = estadoConexao();
@@ -2120,6 +2160,7 @@ function cfgIntegracoes() {
       ${!cfg.microsoft ? `<span class="hint">O servidor ainda não tem <span class="mono">MS_CLIENT_ID</span> e <span class="mono">MS_TENANT_ID</span>. Veja o Passo 6 do README (registro do aplicativo pelo TI).</span>`
         : ms ? `<div class="row"><span class="hint">Conta: <b style="color:var(--ink)">${esc(ms)}</b></span><button class="btn sm" data-act="ms-desconectar">Desconectar</button></div>`
         : `<div><button class="btn pri" data-act="ms-conectar">Conectar conta Microsoft</button></div>`}</div></div></div>
+    ${cfgMonday()}
     <div class="card cfg-card"><div class="integ"><span class="lg" style="background:#611f69">S</span><div><div class="row between"><h2>Slack</h2>${cfg.slack ? `<span class="chip ok">Configurado</span>` : `<span class="chip">Não configurado</span>`}</div>
       <span class="hint">Lê os canais #id-aud-follow-up, #id-auditoria-next, #id-contabilidade-de-fundos e #id-upload-na-df com um token guardado só no servidor.</span>
       ${cfg.slack ? "" : `<span class="hint">Falta a variável <span class="mono">SLACK_TOKEN</span> na Vercel. Veja o Passo 7 do README.</span>`}</div></div></div>`;
@@ -2151,6 +2192,7 @@ const CFG_ACOES = {
     try { await window.pbc.salvarMembro({ email, senha }); S.cfgReset = null; S.cfgConvite = { nome: t.dataset.n, email, senha, novo: false }; render(); toast("Senha provisória definida"); }
     catch (e) { toast(e.message, true); t.disabled = false; }
   },
+  "monday-sync": () => { if (SYNC.imp && !SYNC.imp.fim) return; iniciaMonday(); },
   "diag": async (t) => {
     t.disabled = true; const out = $("diagOut"); if (out) out.innerHTML = `<span class="hint">Consultando o servidor…</span>`;
     try {
@@ -2242,6 +2284,7 @@ document.addEventListener("change", async (e) => {
   db.collection("controles").onSnapshot((snap) => { S.ctl = new Map(snap.docs.map((d) => [d.id, d.data()])); if (S.view.name === "controles") render(); }, () => {});
   db.doc("config/checklist").onSnapshot((s) => { S.ckModelo = s.exists ? s.data() : null; render(); }, () => {});
   db.collection("caixaStatus").onSnapshot((snap) => { S.cxSt = new Map(snap.docs.map((d) => [d.id, d.data()])); if (S.view.name === "caixa") render(); else renderNav(); }, () => {});
+  db.doc("config/monday").onSnapshot((s) => { S.mondayInfo = s.exists ? s.data() : null; renderSync(); if (S.view.name === "config") render(); }, () => {});
   db.doc("config/caixa").onSnapshot((s) => { S.cxSync = s.exists ? s.data() : null; if (S.view.name === "caixa") render(); }, () => {});
   cxAssinar();
   db.collection("pessoas").onSnapshot((snap) => { S.pessoas = snap.docs.map((d) => ({ id: d.id, ...d.data() })); render(); }, () => {});

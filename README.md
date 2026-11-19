@@ -55,6 +55,7 @@ Em **Settings → Environment Variables** (Production), cadastre (modelo em `.en
 | `ADMIN_EMAIL` | `matheus@denvercontabil.com.br` |
 | `ADMIN_SENHA` | senha inicial do dono (8+ caracteres); só vale no primeiro login |
 | `ADMIN_NOME` | `Matheus Bortolansa` |
+| `MONDAY_TOKEN` | opcional, Passo 8 (sincronização com o Monday) |
 | `MS_CLIENT_ID`, `MS_TENANT_ID` | opcional, Passo 6 |
 | `SLACK_TOKEN` | opcional, Passo 7 |
 | `SLACK_CANAIS` | `C08BRNPQGSE,C08CMGGLDUN,C0697HS2KS8,C08BKLUSUM9` |
@@ -99,6 +100,20 @@ Quem clicar em "Buscar novidades" precisa ter acesso à caixa compartilhada **au
 4. Copie o **User OAuth Token** (`xoxp-…`) para `SLACK_TOKEN` e faça Redeploy.
 
 Para incluir ou trocar canais, ajuste `SLACK_CANAIS` (servidor) e a lista `FONTES` em `public/index.html` (tela).
+
+## Passo 8 — Monday (buscar fundos novos)
+
+1. No Monday: foto do perfil → **Developers** → **My access tokens** → copie o token. Ele lê o que a sua conta enxerga, então use uma conta com acesso aos quadros Controle Auditoria 2026, 2025, Eventos e Horizon FIP.
+2. Na Vercel, cadastre `MONDAY_TOKEN` com esse valor e faça **Redeploy**. O token fica só no servidor, e o navegador nunca o vê.
+3. Na ferramenta: botão **Buscar novos** no cartão da barra lateral, ou **Configurações → Dados e sincronização → Buscar fundos novos no Monday**. Contribuidores e o dono podem usar.
+
+Como funciona:
+- **Só acrescenta.** Os fundos que já existem na ferramenta nunca são alterados, mesmo que tenham mudado no Monday. O servidor grava só se o fundo ainda não existir.
+- Os itens em grupos **"Concluídos…"** do Monday são ignorados.
+- Cada fundo novo entra na etapa **Caixa de entrada** do administrador, com subitens, cartas, auditor, exercício e datas, para a equipe conferir e classificar.
+- O progresso aparece em tempo real no cartão da barra lateral e na tela de Configurações.
+- Um fundo apagado da ferramenta volta na próxima busca se continuar em aberto no Monday.
+- Os quadros e a conversão das colunas ficam em `api/monday.js`. O mapeamento é feito pelo título da coluna, não pelo código interno.
 
 ---
 

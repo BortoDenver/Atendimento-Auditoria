@@ -22,6 +22,16 @@ async function pipeline(cmds) {
 }
 const hashParaObj = (arr) => { const o = {}; for (let i = 0; arr && i < arr.length; i += 2) o[arr[i]] = arr[i + 1]; return o; };
 
+// ---------- feed de mudanças (a página consulta ?desde=REV para atualizar a tela) ----------
+const MAX_MUD = 3000;
+async function registraMudanca(paths) {
+  const rev = await redis("INCRBY", P + "rev", paths.length);
+  const cmds = paths.map((p, i) => ["ZADD", P + "mudancas", rev - paths.length + 1 + i, p]);
+  cmds.push(["ZREMRANGEBYRANK", P + "mudancas", 0, -(MAX_MUD + 1)]);
+  await pipeline(cmds);
+  return rev;
+}
+
 // ---------- senhas ----------
 function hashSenha(senha, sal = crypto.randomBytes(16).toString("hex")) {
   return { sal, hash: crypto.scryptSync(String(senha), sal, 64).toString("hex") };
@@ -96,4 +106,4 @@ function rota(fn) {
   };
 }
 
-module.exports = { redis, pipeline, hashParaObj, P, hashSenha, confereSenha, criaSessao, apagaSessao, emailDaSessao, lerMembro, esqueceMembro, exigeMembro, podeEscrever, corpoJson, rota };
+module.exports = { redis, pipeline, hashParaObj, P, registraMudanca, MAX_MUD, hashSenha, confereSenha, criaSessao, apagaSessao, emailDaSessao, lerMembro, esqueceMembro, exigeMembro, podeEscrever, corpoJson, rota };

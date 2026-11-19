@@ -111,7 +111,7 @@
     }
     const total = lotes.reduce((n, l) => n + l.itens.length, 0);
     if (!total) throw erro("bad_request", "Os arquivos estão vazios.");
-    importando = { feito: 0, total, arquivo: "", erro: "", fim: false };
+    importando = { feito: 0, total, arquivo: "", erro: "", fim: false, tipo: "arquivo", titulo: "Importando dados do Monday", unidade: "registros" };
     const avisa = () => emite("pbc:import", { ...importando });
     avisa();
     try {
@@ -146,11 +146,49 @@
     } finally { importando = null; }
   }
 
+  // ---------- sincronização com o Monday (só acrescenta fundos novos) ----------
+  async function sincronizarMonday() {
+    if (importando) throw erro("busy", "Já existe uma importação ou sincronização em andamento.");
+    importando = { feito: 0, total: 0, arquivo: "Conectando ao Monday…", erro: "", fim: false, tipo: "monday", titulo: "Sincronizando com o Monday", unidade: "fundos novos", adicionados: 0, nomes: [], procurando: true };
+    const avisa = () => emite("pbc:import", { ...importando, nomes: importando.nomes.slice(-5) });
+    avisa();
+    let lidos = 0;
+    try {
+      const { quadros } = await post("/api/monday", { acao: "quadros" });
+      const novos = [];
+      for (const q of quadros) {
+        let cursor = null, pag = 0;
+        do {
+          importando.arquivo = `Lendo ${q.nome}${pag ? ` (parte ${pag + 1})` : ""}…`; avisa();
+          const r = await post("/api/monday", { acao: "listar", quadro: q.id, cursor });
+          novos.push(...r.novos); lidos += r.lidos; cursor = r.cursor; pag++;
+          importando.total = novos.length;
+        } while (cursor);
+      }
+      importando.procurando = false; importando.total = novos.length; importando.arquivo = novos.length ? "Gravando fundos novos…" : ""; avisa();
+      for (let i = 0; i < novos.length; i += 20) {
+        const parte = novos.slice(i, i + 20);
+        for (let t = 1; ; t++) {
+          try { const r = await post("/api/monday", { acao: "importar", itens: parte.map((x) => x.id) }); importando.adicionados += r.adicionados; importando.nomes.push(...(r.nomes || [])); importando.erro = ""; break; }
+          catch (e) { if (t >= 3 || e.code === "invalid_argument" || e.code === "needs_reauth") throw e; importando.erro = "Conexão instável, tentando de novo…"; avisa(); await new Promise((ok) => setTimeout(ok, 1500 * t)); }
+        }
+        importando.feito += parte.length; avisa();
+      }
+      await post("/api/monday", { acao: "registrar", adicionados: importando.adicionados, lidos }).catch(() => {});
+      await consultaMudancas();
+      importando.arquivo = ""; importando.fim = true; avisa();
+      return { adicionados: importando.adicionados, lidos };
+    } catch (e) {
+      importando.erro = e.message || "Falha na sincronização."; importando.fim = true; avisa(); throw e;
+    } finally { importando = null; }
+  }
+
   // ---------- funções da tela de Configurações ----------
   async function recarregaMembros() { st.membros = await api("/api/membros"); emite("pbc:membros", st.membros); return st.membros; }
   window.pbc = {
     eu: () => ({ ...st.eu }),
-    config: () => ({ microsoft: !!(st.cfg && st.cfg.microsoft), slack: !!(st.cfg && st.cfg.slack) }),
+    config: () => ({ microsoft: !!(st.cfg && st.cfg.microsoft), slack: !!(st.cfg && st.cfg.slack), monday: !!(st.cfg && st.cfg.monday) }),
+    sincronizarMonday,
     membros: () => st.membros.slice(),
     recarregaMembros,
     salvarMembro: async (o) => { await post("/api/membros", { acao: "salvar", ...o }); return recarregaMembros(); },
