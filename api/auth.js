@@ -18,7 +18,7 @@ module.exports = rota(async (req, res) => {
     if (!m && (await redis("HLEN", P + "membros")) === 0 && email === String(process.env.ADMIN_EMAIL || "").toLowerCase() && senha === process.env.ADMIN_SENHA) {
       const { sal, hash } = hashSenha(senha);
       m = { nome: process.env.ADMIN_NOME || email, papel: "dono", sal, hash, criadoEm: new Date().toISOString() };
-      await redis("HSET", P + "membros", email, JSON.stringify(m));
+      await redis("HSET", P + "membros", email, JSON.stringify(m)); esqueceMembro(email);
     }
     if (!m || !confereSenha(senha, m.sal, m.hash)) return res.status(401).json({ code: "invalid_argument", message: "E-mail ou senha incorretos." });
     await redis("DEL", chave);

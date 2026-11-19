@@ -67,7 +67,8 @@ async function lerMembro(email, semCache) {
   const e = String(email || "").toLowerCase(), c = cacheMembros.get(e);
   if (!semCache && c && c.ate > Date.now()) return c.m;
   const v = await redis("HGET", P + "membros", e), m = v ? JSON.parse(v) : null;
-  cacheMembros.set(e, { m, ate: Date.now() + 30000 });
+  // só guarda quem existe: "não é membro" nunca fica em cache (o primeiro dono é criado logo depois dessa leitura)
+  if (m) cacheMembros.set(e, { m, ate: Date.now() + 30000 }); else cacheMembros.delete(e);
   return m;
 }
 const esqueceMembro = (email) => cacheMembros.delete(String(email || "").toLowerCase());

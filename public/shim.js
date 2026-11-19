@@ -6,7 +6,8 @@
  *   db   → /api/db (Redis), com atualização periódica das mudanças feitas por outras pessoas
  *   user → /api/auth (login por e-mail e senha) e /api/membros
  *   mcp  → Microsoft Graph pelo navegador (Outlook e Teams, login Microsoft via MSAL) e /api/slack
- * Também acrescenta: tela de login, "Trocar senha", "Sair" e, para o dono, "Administração" (membros e importação).
+ * Também acrescenta a tela de login e expõe window.pbc (conta, equipe, importação, sincronização e Microsoft)
+ * para a tela de Configurações da página, além dos eventos "pbc:sync", "pbc:import", "pbc:membros" e "pbc:microsoft".
  */
 (function () {
   "use strict";
@@ -36,44 +37,56 @@
     return b;
   };
 
-  // ---------- telas (login, troca de senha, administração) ----------
-  const CSS = `#pbc-cap{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:color-mix(in srgb,var(--bg,#f4f6f4) 92%,transparent);font:14px/1.45 "IBM Plex Sans",system-ui,sans-serif;color:var(--ink,#1a2422);padding:16px;overflow:auto}
-    #pbc-cap .box{background:var(--surface,#fff);border:1px solid var(--line,#e1e5e1);border-radius:12px;padding:24px;max-width:440px;width:100%;display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
-    #pbc-cap .box.larga{max-width:820px}#pbc-cap h1{margin:0;font-size:21px}#pbc-cap h2{margin:6px 0 0;font-size:15px}#pbc-cap p{margin:0;color:var(--muted,#5a6763)}
-    #pbc-cap input,#pbc-cap select{padding:8px 10px;border:1px solid var(--line,#e1e5e1);border-radius:8px;font:inherit;background:var(--surface,#fff);color:inherit;min-width:0}
-    #pbc-cap button{padding:8px 13px;border-radius:8px;border:1px solid var(--line,#e1e5e1);background:var(--surface,#fff);font:inherit;font-weight:600;cursor:pointer;color:inherit}
-    #pbc-cap button.pri{background:var(--accent,#1d5c54);border-color:var(--accent,#1d5c54);color:var(--accent-ink,#fff)}#pbc-cap .msg{font-size:13px;min-height:18px}
-    #pbc-cap table{width:100%;border-collapse:collapse;font-size:13px}#pbc-cap th,#pbc-cap td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line,#e1e5e1)}
-    #pbc-cap .linha{display:flex;flex-wrap:wrap;gap:8px;align-items:center}#pbc-cap .x{margin-left:auto;border:none;background:none;font-size:20px;line-height:1;padding:2px 6px}`;
-  function capa(html, larga) {
+  // ---------- avisos para a página (sincronização e importação) ----------
+  const emite = (nome, detalhe) => { try { window.dispatchEvent(new CustomEvent(nome, { detail: detalhe })); } catch (e) {} };
+  const estadoSync = () => ({ ultima: st.ultimaSync || 0, erro: st.syncErro || "", intervalo: INTERVALO, visivel: document.visibilityState === "visible", rev: st.rev });
+  const avisaSync = () => emite("pbc:sync", estadoSync());
+
+  // ---------- tela de login (antes de a ferramenta abrir) ----------
+  const CSS = `#pbc-cap{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:var(--bg,#f4f6f4);font:14px/1.45 "IBM Plex Sans",system-ui,sans-serif;color:var(--ink,#1a2422);padding:16px;overflow:auto}
+    #pbc-cap .box{background:var(--surface,#fff);border:1px solid var(--line,#e1e5e1);border-radius:14px;padding:28px;max-width:400px;width:100%;display:flex;flex-direction:column;gap:14px;box-shadow:0 18px 50px rgba(0,0,0,.10)}
+    #pbc-cap h1{margin:4px 0 0;font-size:21px}#pbc-cap p{margin:0;color:var(--muted,#5a6763);font-size:13px}
+    #pbc-cap label{font-size:12px;font-weight:600;color:var(--muted,#5a6763);display:flex;flex-direction:column;gap:5px}
+    #pbc-cap input{padding:10px 12px;border:1px solid var(--line,#e1e5e1);border-radius:8px;font:inherit;background:var(--surface-2,#f7f8f7);color:var(--ink,#1a2422);width:100%;box-sizing:border-box}
+    #pbc-cap input:focus{outline:2px solid var(--accent,#1d5c54);outline-offset:0;border-color:transparent}
+    #pbc-cap .pw{position:relative}#pbc-cap .pw button{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:none;background:none;color:var(--muted,#5a6763);font:600 12px/1 inherit;padding:6px;cursor:pointer}
+    #pbc-cap .go{padding:11px 14px;border-radius:8px;border:none;background:var(--accent,#1d5c54);color:var(--accent-ink,#fff);font:600 14px/1 inherit;cursor:pointer}
+    #pbc-cap .go:disabled{opacity:.6;cursor:default}#pbc-cap .msg{font-size:13px;min-height:18px;color:var(--late,#a8221a)}
+    #pbc-cap .x{margin-left:auto;border:none;background:none;font-size:22px;line-height:1;padding:2px 6px;cursor:pointer;color:inherit}
+    #pbc-cap .marca{display:flex;align-items:center;gap:10px}#pbc-cap .marca i{width:36px;height:36px;border-radius:9px;background:var(--accent,#1d5c54);color:var(--accent-ink,#fff);display:grid;place-items:center;font:700 15px/1 inherit;font-style:normal}`;
+  function capa(html) {
     let el = document.getElementById("pbc-cap");
     if (!el) { el = document.createElement("div"); el.id = "pbc-cap"; document.body.appendChild(el); }
-    el.innerHTML = `<style>${CSS}</style><div class="box${larga ? " larga" : ""}"><div class="linha"><div style="width:32px;height:32px;border-radius:8px;background:var(--accent,#1d5c54);color:#fff;display:grid;place-items:center;font-weight:700">D</div><div><b>Denver PBC</b><div style="font-size:12px;color:var(--muted,#5a6763)">Atendimento a Auditoria</div></div></div>${html}</div>`;
+    el.innerHTML = `<style>${CSS}</style><div class="box" role="dialog" aria-modal="true"><div class="marca"><i>D</i><div><b>Denver PBC</b><div style="font-size:12px;color:var(--muted,#5a6763)">Atendimento a Auditoria</div></div></div>${html}</div>`;
+    el.querySelectorAll("[data-ver]").forEach((b) => (b.onclick = () => { const i = b.previousElementSibling; i.type = i.type === "password" ? "text" : "password"; b.textContent = i.type === "password" ? "Mostrar" : "Ocultar"; }));
     return el;
   }
   const fechaCapa = () => { const el = document.getElementById("pbc-cap"); if (el) el.remove(); };
+  const campoSenha = (id, ph, ac, extra) => `<div class="pw"><input type="password" id="${id}" required placeholder="${ph}" autocomplete="${ac}" ${extra || ""}><button type="button" data-ver tabindex="-1">Mostrar</button></div>`;
   function telaLogin(aviso) {
     return new Promise((ok) => {
-      const el = capa(`<h1>Entrar</h1>${aviso ? `<p>${esc(aviso)}</p>` : ""}<form id="pbcF" style="display:flex;flex-direction:column;gap:8px">
-        <input type="email" id="pbcE" required placeholder="seu.nome@denvercontabil.com.br" autocomplete="username">
-        <input type="password" id="pbcS" required placeholder="Senha" autocomplete="current-password">
-        <button class="pri" type="submit">Entrar</button></form><div class="msg" id="pbcM"></div><p style="font-size:12px">Sem acesso? Peça ao responsável pela ferramenta para cadastrar seu e-mail.</p>`);
-      el.querySelector("#pbcF").onsubmit = async (e) => {
-        e.preventDefault(); const msg = el.querySelector("#pbcM"); msg.textContent = "Entrando…";
-        try { const eu = await post("/api/auth", { acao: "entrar", email: el.querySelector("#pbcE").value, senha: el.querySelector("#pbcS").value }); ok(eu); }
-        catch (er) { msg.textContent = er.message; }
+      const el = capa(`<div><h1>Entrar</h1><p>${esc(aviso || "Use o e-mail e a senha cadastrados pelo responsável da ferramenta.")}</p></div>
+        <form id="pbcF" style="display:flex;flex-direction:column;gap:12px">
+        <label>E-mail<input type="email" id="pbcE" required placeholder="nome@denvercontabil.com.br" autocomplete="username"></label>
+        <label>Senha${campoSenha("pbcS", "Sua senha", "current-password")}</label>
+        <button class="go" type="submit">Entrar</button></form><div class="msg" id="pbcM" role="alert"></div>`);
+      const f = el.querySelector("#pbcF"), bt = f.querySelector(".go");
+      f.onsubmit = async (e) => {
+        e.preventDefault(); const msg = el.querySelector("#pbcM"); msg.textContent = ""; bt.disabled = true; bt.textContent = "Entrando…";
+        try { ok(await post("/api/auth", { acao: "entrar", email: el.querySelector("#pbcE").value, senha: el.querySelector("#pbcS").value })); }
+        catch (er) { msg.textContent = er.message; bt.disabled = false; bt.textContent = "Entrar"; }
       };
       setTimeout(() => el.querySelector("#pbcE").focus(), 50);
     });
   }
-  function telaTrocarSenha(obrigatoria) {
+  function telaTrocarSenha() {
     return new Promise((ok) => {
-      const el = capa(`<div class="linha"><h1>${obrigatoria ? "Defina sua senha" : "Trocar senha"}</h1>${obrigatoria ? "" : `<button class="x" id="pbcX" title="Fechar">×</button>`}</div>
-        ${obrigatoria ? "<p>Você entrou com uma senha provisória. Escolha uma senha pessoal (mínimo 8 caracteres).</p>" : ""}
-        <form id="pbcT" style="display:flex;flex-direction:column;gap:8px"><input type="password" id="pbcA" required placeholder="Senha atual" autocomplete="current-password">
-        <input type="password" id="pbcN" required minlength="8" placeholder="Nova senha" autocomplete="new-password"><input type="password" id="pbcN2" required minlength="8" placeholder="Repita a nova senha" autocomplete="new-password">
-        <button class="pri" type="submit">Salvar</button></form><div class="msg" id="pbcM"></div>`);
-      const x = el.querySelector("#pbcX"); if (x) x.onclick = () => { fechaCapa(); ok(false); };
+      const el = capa(`<div><h1>Defina sua senha</h1><p>Você entrou com uma senha provisória. Escolha uma senha pessoal com pelo menos 8 caracteres.</p></div>
+        <form id="pbcT" style="display:flex;flex-direction:column;gap:12px">
+        <label>Senha provisória${campoSenha("pbcA", "Senha recebida", "current-password")}</label>
+        <label>Nova senha${campoSenha("pbcN", "Mínimo 8 caracteres", "new-password", 'minlength="8"')}</label>
+        <label>Repita a nova senha${campoSenha("pbcN2", "Repita", "new-password", 'minlength="8"')}</label>
+        <button class="go" type="submit">Salvar e continuar</button></form><div class="msg" id="pbcM" role="alert"></div>`);
       el.querySelector("#pbcT").onsubmit = async (e) => {
         e.preventDefault(); const msg = el.querySelector("#pbcM");
         if (el.querySelector("#pbcN").value !== el.querySelector("#pbcN2").value) { msg.textContent = "As senhas não conferem."; return; }
@@ -82,66 +95,69 @@
       };
     });
   }
-  async function telaAdmin() {
-    const desenha = async (aviso) => {
-      st.membros = await api("/api/membros");
-      const el = capa(`<div class="linha"><h1>Administração</h1><button class="x" id="pbcX" title="Fechar">×</button></div>
-        <h2>Membros da equipe</h2><p>Leitor: só visualiza. Contribuidor: edita e vê “Senhas e logins”. Dono: tudo, inclusive esta tela.</p>
-        <div style="overflow:auto"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th></th></tr></thead><tbody>
-        ${st.membros.map((m) => `<tr data-e="${esc(m.email)}"><td>${esc(m.nome)}</td><td>${esc(m.email)}</td><td><select data-papel>${["leitor", "contribuidor", "dono"].map((p) => `<option${p === m.papel ? " selected" : ""}>${p}</option>`).join("")}</select></td>
-          <td style="white-space:nowrap"><button data-acao="senha">Nova senha</button> ${m.email === st.eu.email ? "" : `<button data-acao="remover">Remover</button>`}</td></tr>`).join("")}</tbody></table></div>
-        <form id="pbcNovo" class="linha"><input id="pbcNn" placeholder="Nome" required style="flex:1 1 140px"><input id="pbcNe" type="email" placeholder="e-mail" required style="flex:2 1 200px">
-          <select id="pbcNp"><option>contribuidor</option><option>leitor</option><option>dono</option></select><input id="pbcNs" placeholder="Senha provisória (8+)" minlength="8" required style="flex:1 1 150px"><button class="pri" type="submit">Adicionar</button></form>
-        <h2>Importar dados</h2><p>Use os arquivos <b>docs.json</b> e <b>cofre.json</b> exportados do claude.ai. Pode importar de novo: os registros são substituídos pelo mesmo caminho.</p>
-        <div class="linha"><input type="file" id="pbcArq" accept=".json,application/json" multiple><button id="pbcImp" class="pri">Importar</button></div>
-        <div class="msg" id="pbcM">${esc(aviso || "")}</div>`, true);
-      const msg = el.querySelector("#pbcM");
-      el.querySelector("#pbcX").onclick = fechaCapa;
-      el.querySelectorAll("[data-papel]").forEach((s) => (s.onchange = async () => {
-        const email = s.closest("tr").dataset.e;
-        try { await post("/api/membros", { acao: "salvar", email, papel: s.value }); desenha("Papel atualizado."); } catch (er) { msg.textContent = er.message; }
-      }));
-      el.querySelectorAll("[data-acao]").forEach((b) => (b.onclick = async () => {
-        const email = b.closest("tr").dataset.e;
-        try {
-          if (b.dataset.acao === "remover") { if (!confirm(`Remover ${email} da equipe?`)) return; await post("/api/membros", { acao: "remover", email }); desenha("Membro removido."); }
-          else { const s = prompt(`Senha provisória para ${email} (mínimo 8 caracteres). A pessoa vai trocar no próximo acesso.`); if (!s) return; await post("/api/membros", { acao: "salvar", email, senha: s }); desenha("Senha provisória definida."); }
-        } catch (er) { msg.textContent = er.message; }
-      }));
-      el.querySelector("#pbcNovo").onsubmit = async (e) => {
-        e.preventDefault();
-        try { await post("/api/membros", { acao: "salvar", nome: el.querySelector("#pbcNn").value, email: el.querySelector("#pbcNe").value, papel: el.querySelector("#pbcNp").value, senha: el.querySelector("#pbcNs").value }); desenha("Membro adicionado. Passe a senha provisória por um canal seguro."); }
-        catch (er) { msg.textContent = er.message; }
-      };
-      el.querySelector("#pbcImp").onclick = async () => {
-        const arqs = [...el.querySelector("#pbcArq").files]; if (!arqs.length) { msg.textContent = "Escolha os arquivos."; return; }
-        let total = 0;
-        try {
-          for (const a of arqs) {
-            const itens = JSON.parse(await a.text()); if (!Array.isArray(itens)) throw new Error(`${a.name} não está no formato esperado.`);
-            for (let i = 0; i < itens.length; i += 100) {
-              const r = await post("/api/db", { op: "importar", itens: itens.slice(i, i + 100) }); total += r.importados;
-              msg.textContent = `Importando ${a.name}: ${Math.min(i + 100, itens.length)}/${itens.length}…`;
+  function sessaoExpirou() { if (!document.getElementById("pbc-cap")) telaLogin("Sua sessão expirou. Entre de novo.").then(() => location.reload()); }
+
+  // ---------- importação dos arquivos exportados (docs.json e cofre.json) ----------
+  let importando = null;
+  async function importarArquivos(arquivos) {
+    if (importando) throw erro("busy", "Já existe uma importação em andamento.");
+    const lotes = [];
+    for (const a of arquivos) {
+      let itens;
+      try { itens = JSON.parse(await a.text()); } catch (e) { throw erro("bad_request", `${a.name} não é um arquivo JSON válido.`); }
+      if (!Array.isArray(itens) || !itens.every((x) => x && typeof x.path === "string" && x.data && typeof x.data === "object"))
+        throw erro("bad_request", `${a.name} não está no formato exportado da ferramenta (lista de {path, data}).`);
+      lotes.push({ nome: a.name, itens });
+    }
+    const total = lotes.reduce((n, l) => n + l.itens.length, 0);
+    if (!total) throw erro("bad_request", "Os arquivos estão vazios.");
+    importando = { feito: 0, total, arquivo: "", erro: "", fim: false };
+    const avisa = () => emite("pbc:import", { ...importando });
+    avisa();
+    try {
+      for (const l of lotes) {
+        importando.arquivo = l.nome;
+        for (let i = 0; i < l.itens.length; i += 50) {
+          const parte = l.itens.slice(i, i + 50);
+          for (let t = 1; ; t++) {
+            try { await post("/api/db", { op: "importar", itens: parte }); importando.erro = ""; break; }
+            catch (e) {
+              if (t >= 4 || e.code === "invalid_argument" || e.code === "needs_reauth") throw e;
+              importando.erro = "Conexão instável, tentando de novo…"; avisa(); await new Promise((r) => setTimeout(r, 1200 * t));
             }
           }
-          msg.textContent = `Pronto: ${total} registros importados. Recarregue a página para ver tudo.`;
-        } catch (er) { msg.textContent = "Falha na importação: " + er.message; }
-      };
-    };
-    try { await desenha(); } catch (er) { alert(er.message); }
+          importando.feito += parte.length; avisa();
+        }
+      }
+      importando.fim = true; avisa();
+      await consultaMudancas(); // traz os registros novos para a tela, sem recarregar
+      return total;
+    } catch (e) {
+      importando.erro = e.message || "Falha na importação."; importando.fim = true; avisa(); throw e;
+    } finally { importando = null; }
   }
-  function sessaoExpirou() { if (!document.getElementById("pbc-cap")) telaLogin("Sua sessão expirou. Entre de novo.").then(() => location.reload()); }
-  function barraUsuario() {
-    const alvo = document.querySelector(".top-right"); if (!alvo || document.getElementById("pbcBarra")) return;
-    const span = document.createElement("span"); span.id = "pbcBarra"; span.style.cssText = "display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap";
-    span.innerHTML = `${st.cfg.microsoft ? `<button class="btn" id="pbcMs" title="Necessário para buscar e-mails e mensagens do Teams na Caixa de entrada"${st.msConta ? " hidden" : ""}>Conectar Microsoft</button>` : ""}
-      ${st.eu.papel === "dono" ? `<button class="btn" id="pbcAdm">Administração</button>` : ""}<button class="btn" id="pbcSenha">Trocar senha</button><button class="btn" id="pbcSair">Sair</button>`;
-    alvo.appendChild(span);
-    const ms = span.querySelector("#pbcMs"); if (ms) ms.onclick = () => conectarMicrosoft().then(() => { ms.hidden = true; }).catch((e) => alert(e.message));
-    const adm = span.querySelector("#pbcAdm"); if (adm) adm.onclick = telaAdmin;
-    span.querySelector("#pbcSenha").onclick = () => telaTrocarSenha(false);
-    span.querySelector("#pbcSair").onclick = async () => { try { await post("/api/auth", { acao: "sair" }); } catch (e) {} location.reload(); };
-  }
+
+  // ---------- funções da tela de Configurações ----------
+  async function recarregaMembros() { st.membros = await api("/api/membros"); emite("pbc:membros", st.membros); return st.membros; }
+  window.pbc = {
+    eu: () => ({ ...st.eu }),
+    config: () => ({ microsoft: !!(st.cfg && st.cfg.microsoft), slack: !!(st.cfg && st.cfg.slack) }),
+    membros: () => st.membros.slice(),
+    recarregaMembros,
+    salvarMembro: async (o) => { await post("/api/membros", { acao: "salvar", ...o }); return recarregaMembros(); },
+    removerMembro: async (email) => { await post("/api/membros", { acao: "remover", email }); return recarregaMembros(); },
+    trocarSenha: (atual, nova) => post("/api/auth", { acao: "trocar", atual, nova }),
+    sair: async () => { try { await post("/api/auth", { acao: "sair" }); } catch (e) {} location.reload(); },
+    importar: importarArquivos,
+    importando: () => (importando ? { ...importando } : null),
+    sync: estadoSync,
+    sincronizarAgora: () => consultaMudancas(true),
+    microsoft: {
+      conectado: () => (st.msConta ? st.msConta.username || "conectado" : ""),
+      conectar: async () => { await conectarMicrosoft(); emite("pbc:microsoft", {}); },
+      desconectar: async () => { if (st.msal && st.msConta) { try { st.msal.setActiveAccount && st.msal.setActiveAccount(null); } catch (e) {} } st.msConta = null; try { for (const k of Object.keys(sessionStorage)) if (/msal|login\.windows|microsoftonline/i.test(k)) sessionStorage.removeItem(k); } catch (e) {} emite("pbc:microsoft", {}); },
+    },
+  };
 
   // ---------- Microsoft (MSAL no navegador) ----------
   function carregaScript(src) { return new Promise((ok, falha) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => falha(new Error("Falha ao carregar " + src)); document.head.appendChild(s); }); }
@@ -173,10 +189,9 @@
     try { eu = await post("/api/auth", { acao: "eu" }); } catch (e) {}
     if (!eu) { await domPronto(); eu = await telaLogin(); fechaCapa(); }
     st.eu = eu;
-    if (eu.trocarSenha) { await domPronto(); await telaTrocarSenha(true); }
+    if (eu.trocarSenha) { await domPronto(); await telaTrocarSenha(); }
     st.membros = await api("/api/membros").catch(() => []);
-    iniciaMsal().catch(() => {});
-    domPronto().then(() => setTimeout(barraUsuario, 300));
+    iniciaMsal().then(() => emite("pbc:microsoft", {})).catch(() => {});
     return true;
   })();
 
@@ -185,23 +200,38 @@
   const opsJs = { ">=": (a, b) => String(a ?? "") >= String(b), ">": (a, b) => String(a ?? "") > String(b), "<=": (a, b) => String(a ?? "") <= String(b), "<": (a, b) => String(a ?? "") < String(b), "==": (a, b) => a === b, "!=": (a, b) => a !== b };
   const separa = (p) => [p.slice(0, p.lastIndexOf("/")), p.slice(p.lastIndexOf("/") + 1)];
   const snapCol = (o) => ({ docs: [...o.map.entries()].filter(([, d]) => !o.filtro || o.filtro(d)).map(([id, d]) => ({ id, data: () => d, exists: true })), metadata: { fromCache: false } });
-  function aplica(path, data) {
-    const [col, id] = separa(path);
-    for (const o of ouvintesCol) if (o.col === col && o.pronto) { if (data == null) o.map.delete(id); else o.map.set(id, data); o.cb(snapCol(o)); }
-    for (const o of ouvintesDoc) if (o.path === path && o.pronto) o.cb({ exists: data != null, data: () => (data == null ? undefined : data) });
+  // aplica várias mudanças de uma vez e avisa cada ouvinte uma única vez
+  function aplicaLote(lista) {
+    const tocados = new Set();
+    for (const { path, data } of lista) {
+      const [col, id] = separa(path);
+      for (const o of ouvintesCol) if (o.col === col && o.pronto) { if (data == null) o.map.delete(id); else o.map.set(id, data); tocados.add(o); }
+      for (const o of ouvintesDoc) if (o.path === path && o.pronto) { o.ultimo = data; tocados.add(o); }
+    }
+    for (const o of tocados) {
+      if (o.map) o.cb(snapCol(o));
+      else { const d = o.ultimo; o.cb({ exists: d != null, data: () => (d == null ? undefined : d) }); }
+    }
   }
-  let consultando = false, proxima = null;
-  async function consultaMudancas() {
-    if (consultando || !st.eu) return; consultando = true;
-    try {
-      const r = await api("/api/db?desde=" + st.rev);
-      if (r.recarregar) { location.reload(); return; }
-      for (const m of r.mudancas || []) aplica(m.path, m.data);
-      st.rev = Math.max(st.rev, r.rev || 0);
-    } catch (e) {} finally { consultando = false; }
+  const aplica = (path, data) => aplicaLote([{ path, data }]);
+  let consultando = null, proxima = null;
+  function consultaMudancas(forcar) {
+    if (!st.eu) return Promise.resolve();
+    if (consultando) return forcar ? consultando.then(() => consultaMudancas()) : consultando;
+    consultando = (async () => {
+      try {
+        const r = await api("/api/db?desde=" + st.rev);
+        if (r.recarregar) { location.reload(); return; }
+        if ((r.mudancas || []).length) aplicaLote(r.mudancas);
+        st.rev = Math.max(st.rev, r.rev || 0);
+        st.ultimaSync = Date.now(); st.syncErro = "";
+      } catch (e) { st.syncErro = e.message || "sem conexão"; }
+      finally { consultando = null; avisaSync(); }
+    })();
+    return consultando;
   }
   function agenda(ms) { clearTimeout(proxima); proxima = setTimeout(async () => { if (document.visibilityState === "visible") await consultaMudancas(); agenda(INTERVALO); }, ms); }
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") agenda(300); });
+  document.addEventListener("visibilitychange", () => { avisaSync(); if (document.visibilityState === "visible") agenda(300); });
   window.addEventListener("focus", () => agenda(300));
   function colecao(col, where) {
     const filtro = where ? (d) => (opsJs[where[1]] || opsJs["=="])(d && d[where[0]], where[2]) : null;
@@ -214,7 +244,7 @@
         api("/api/db?" + qs).then((r) => {
           for (const d of r.docs || []) o.map.set(d.id, d.data);
           st.rev = st.rev ? Math.min(st.rev, r.rev || 0) : r.rev || 0;
-          o.pronto = true; cb(snapCol(o)); agenda(INTERVALO);
+          o.pronto = true; cb(snapCol(o)); st.ultimaSync = Date.now(); avisaSync(); agenda(INTERVALO);
         }).catch((e) => err && err(e));
         return () => ouvintesCol.delete(o);
       },

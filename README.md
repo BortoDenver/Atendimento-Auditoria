@@ -64,20 +64,20 @@ Depois de salvar, faça **Redeploy**.
 ## Passo 4 — Primeiro acesso e importação dos dados
 
 1. Abra o endereço da Vercel e entre com `ADMIN_EMAIL` e `ADMIN_SENHA`. Esse primeiro login cria você como **dono** (só acontece enquanto não há nenhum membro).
-2. No topo, **Administração → Importar dados**: selecione juntos `docs.json` e `cofre.json` do pacote de dados e clique em **Importar**. A tela mostra quantos registros entraram (esperado: 506 no total). Pode importar de novo sem duplicar.
+2. Com a base vazia, a **Visão geral** já mostra a área de importação (também fica em **Configurações → Dados e sincronização**). Arraste `docs.json` e `cofre.json` do pacote de dados, ou clique e escolha os dois. O progresso aparece na hora, ali e no cartão da barra lateral (esperado: 506 registros). Importar de novo não duplica, mas substitui os registros pelo conteúdo do arquivo.
 3. **Apague o pacote de dados do seu computador** depois de conferir.
 4. Opcional: depois do primeiro login, você pode apagar `ADMIN_SENHA` da Vercel.
 
 ## Passo 5 — Cadastrar a equipe
 
-Em **Administração → Adicionar**: e-mail, nome, papel e uma senha provisória. Na primeira entrada, a pessoa é obrigada a trocar a senha.
+Em **Configurações → Equipe e acessos → Adicionar usuário** (ou **Equipe → Cadastrar novo usuário**): nome, e-mail e papel. A senha provisória já vem gerada, e ao salvar aparece uma mensagem pronta para copiar e enviar à pessoa. Na primeira entrada, ela é obrigada a trocar a senha.
 
 Papéis:
 - **leitor**: só visualiza; não vê "Senhas e logins".
 - **contribuidor**: edita tudo e vê "Senhas e logins".
 - **dono**: tudo, e administra a equipe.
 
-Esqueceu a senha? O dono define uma nova senha provisória na Administração.
+Esqueceu a senha? O dono clica em **Redefinir senha** na lista de pessoas. Na mesma lista o dono troca o papel ou remove o acesso.
 
 ## Passo 6 — Microsoft (Outlook e Teams na Caixa de entrada)
 
@@ -87,7 +87,7 @@ Peça ao TI para registrar um aplicativo no **Microsoft Entra ID** (portal.azure
 2. **API permissions → Microsoft Graph → Delegated**: `User.Read`, `Mail.Read`, `Mail.Read.Shared`, `Chat.Read` → **Grant admin consent**.
 3. Anote o **Application (client) ID** → `MS_CLIENT_ID` e o **Directory (tenant) ID** → `MS_TENANT_ID`. Não precisa de client secret.
 
-Redeploy. Na ferramenta, clique em **Conectar Microsoft** (o acesso dura cerca de 1 hora e é renovado sozinho enquanto a sessão Microsoft estiver ativa).
+Redeploy. Na ferramenta, vá em **Configurações → Integrações → Conectar conta Microsoft** (o acesso dura cerca de 1 hora e é renovado sozinho enquanto a sessão Microsoft estiver ativa).
 
 Quem clicar em "Buscar novidades" precisa ter acesso à caixa compartilhada **auditoriafundos@denvercontabil.com.br** e participar das conversas do Teams **Atendimento a Auditoria** e **Contabilidade de Fundos**.
 
@@ -101,6 +101,12 @@ Quem clicar em "Buscar novidades" precisa ter acesso à caixa compartilhada **au
 Para incluir ou trocar canais, ajuste `SLACK_CANAIS` (servidor) e a lista `FONTES` em `public/index.html` (tela).
 
 ---
+
+## Configurações e barra lateral
+
+- **Configurações** (rodapé da barra lateral ou menu do seu nome, no topo) tem as seções Aparência (tema claro, escuro ou automático e densidade), Minha conta (senha e sair), Equipe e acessos, Dados e sincronização, e Integrações. Tema e densidade valem para cada pessoa, no próprio navegador.
+- O cartão **Fundos do Monday**, no rodapé da barra lateral, mostra quantos fundos estão em cada etapa e o percentual concluído. Ele se atualiza sozinho a cada sincronização. Durante uma importação, vira uma barra de progresso.
+- O botão de sol/lua no topo alterna o tema. A tecla `/` leva direto para a busca.
 
 ## Segurança
 
