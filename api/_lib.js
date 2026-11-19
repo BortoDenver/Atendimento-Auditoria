@@ -8,14 +8,16 @@ const P = "pbc:";
 async function redis(...cmd) {
   if (!R_URL || !R_TOK) throw Object.assign(new Error("Redis não configurado (KV_REST_API_URL / KV_REST_API_TOKEN)."), { status: 500 });
   const r = await fetch(R_URL, { method: "POST", headers: { Authorization: `Bearer ${R_TOK}`, "Content-Type": "application/json" }, body: JSON.stringify(cmd.map(String)) });
-  const j = await r.json();
+  const j = await r.json().catch(() => ({ error: `resposta inesperada (HTTP ${r.status})` }));
   if (j.error) throw Object.assign(new Error("Redis: " + j.error), { status: 500 });
   return j.result;
 }
 async function pipeline(cmds) {
   if (!cmds.length) return [];
+  if (!R_URL || !R_TOK) throw Object.assign(new Error("Redis não configurado (KV_REST_API_URL / KV_REST_API_TOKEN)."), { status: 500 });
   const r = await fetch(R_URL + "/pipeline", { method: "POST", headers: { Authorization: `Bearer ${R_TOK}`, "Content-Type": "application/json" }, body: JSON.stringify(cmds.map((c) => c.map(String))) });
-  const j = await r.json();
+  const j = await r.json().catch(() => null);
+  if (!Array.isArray(j)) throw Object.assign(new Error("Redis: " + ((j && j.error) || `resposta inesperada (HTTP ${r.status})`)), { status: 500 });
   return j.map((x) => { if (x.error) throw Object.assign(new Error("Redis: " + x.error), { status: 500 }); return x.result; });
 }
 const hashParaObj = (arr) => { const o = {}; for (let i = 0; arr && i < arr.length; i += 2) o[arr[i]] = arr[i + 1]; return o; };

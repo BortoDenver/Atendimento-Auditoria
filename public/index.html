@@ -1982,7 +1982,7 @@ function atualizaImportUI() {
   el.querySelector(".sbar span").style.cssText = `width:${pct}%;background:${i.erro && i.fim ? "var(--warn)" : fimOk ? "var(--ok)" : "var(--accent)"}`;
   el.querySelector("[data-t]").textContent = `${i.feito} de ${i.total} registros${i.arquivo && !i.fim ? " · " + i.arquivo : ""}`;
   el.querySelector("[data-p]").textContent = pct + "%";
-  const m = el.querySelector("[data-m]"); m.textContent = i.erro || (fimOk ? "Importação concluída. Os dados já estão na tela de todos." : "Mantenha esta aba aberta até terminar.");
+  const m = el.querySelector("[data-m]"); m.textContent = i.erro || (fimOk ? `Importação concluída e conferida no servidor${i.conferido ? " (" + i.conferido + ")" : ""}. Os dados já estão na tela de todos.` : "Mantenha esta aba aberta até terminar.");
   m.style.color = i.erro ? "var(--warn)" : fimOk ? "var(--ok)" : "var(--muted)";
 }
 async function iniciaImport(lista) {
@@ -2105,6 +2105,8 @@ function cfgDados() {
     <div class="stat-grid"><div><b>${total}</b><span>Fundos na base</span></div><div><b>${total - c.done}</b><span>Em aberto</span></div><div><b>${S.ctl.size}</b><span>Controles internos</span></div><div><b>${S.cofre && S.cofre !== "negado" ? (S.cofre.itens || []).length : "—"}</b><span>Senhas e logins</span></div></div>
     ${total ? `<div class="sbar" style="height:10px">${ETAPAS.map((e) => `<span style="width:${(c[e.k] / total) * 100}%;background:${e.c}" title="${esc(e.n)}: ${c[e.k]}"></span>`).join("")}</div>
     <div class="row" style="gap:6px 16px">${ETAPAS.map((e) => `<span class="hint" style="display:inline-flex;gap:6px;align-items:center"><i style="width:9px;height:9px;border-radius:2px;background:${e.c}"></i>${esc(e.n)} <b class="mono" style="color:var(--ink)">${c[e.k]}</b></span>`).join("")}</div>` : ""}</div>
+  ${window.pbc ? `<div class="card cfg-card"><header><div class="row between"><h2>Verificar servidor</h2><button class="btn sm" data-act="diag">${ic("shield", 14)}Verificar agora</button></div>
+      <p>Confere a conexão com o banco (Redis) e quantos registros estão gravados de fato no servidor. Use quando algo não aparecer na tela.</p></header><div id="diagOut">${S.diag || ""}</div></div>` : ""}
   ${dono ? `<div class="card cfg-card"><header><h2>Importar dados do Monday</h2><p>Carrega os arquivos <b>docs.json</b> (fundos, controles e histórico) e <b>cofre.json</b> (senhas e logins) exportados. ${total ? "<b>Atenção:</b> importar de novo substitui os registros com o conteúdo do arquivo." : "Use uma vez, na carga inicial."}</p></header>${importBox()}</div>` : ""}`;
 }
 function atualizaDadosUI() {
@@ -2148,6 +2150,23 @@ const CFG_ACOES = {
     t.disabled = true;
     try { await window.pbc.salvarMembro({ email, senha }); S.cfgReset = null; S.cfgConvite = { nome: t.dataset.n, email, senha, novo: false }; render(); toast("Senha provisória definida"); }
     catch (e) { toast(e.message, true); t.disabled = false; }
+  },
+  "diag": async (t) => {
+    t.disabled = true; const out = $("diagOut"); if (out) out.innerHTML = `<span class="hint">Consultando o servidor…</span>`;
+    try {
+      const d = await window.pbc.diagnostico(), c = d.colecoes, tela = S.fundos.size;
+      const linha = (n, v, ok, obs) => `<tr><td>${n}</td><td class="mono" style="text-align:right">${v}</td><td>${ok ? `<span class="chip ok">ok</span>` : `<span class="chip warn">atenção</span>`}</td><td class="hint">${obs || ""}</td></tr>`;
+      S.diag = `<table style="width:100%;border-collapse:collapse;font-size:13px">${[
+        linha("Conexão com o Redis", d.ms + " ms", true, `região ${esc(d.servidor.regiao || "?")}${d.servidor.commit ? " · versão " + esc(d.servidor.commit) : ""}`),
+        linha("Fundos gravados no servidor", c.fundos, c.fundos > 0, c.fundos ? (tela === c.fundos ? "todos aparecem na sua tela" : `sua tela mostra ${tela}: clique em Atualizar agora`) : "base vazia: importe o docs.json"),
+        linha("Controles internos", c.controles, c.controles > 0, c.controles ? "" : "vêm no docs.json"),
+        linha("Senhas e logins", c.cofre, c.cofre > 0, c.cofre ? "" : "vêm no cofre.json"),
+        linha("Pessoas na Equipe", c.pessoas, true, ""),
+        linha("Usuários com acesso", d.membros, d.membros > 0, ""),
+        linha("Seu acesso", esc(d.voce.papel), d.voce.papel === "dono", d.voce.papel === "dono" ? "" : "só o dono importa dados"),
+      ].join("").replace(/<td/g, '<td style="padding:7px 6px;border-bottom:1px solid var(--line-2)"')}</table>`;
+    } catch (e) { S.diag = `<div class="notice" style="background:var(--late-bg);color:var(--late)">Falha ao consultar o servidor: ${esc(e.message || e)}</div>`; }
+    const o2 = $("diagOut"); if (o2) o2.innerHTML = S.diag; t.disabled = false;
   },
   "ms-conectar": async () => { try { await window.pbc.microsoft.conectar(); toast("Conta Microsoft conectada"); } catch (e) { toast(e.message || "Não foi possível conectar.", true); } },
   "ms-desconectar": async () => { await window.pbc.microsoft.desconectar(); toast("Conta Microsoft desconectada"); },

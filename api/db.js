@@ -46,6 +46,18 @@ module.exports = rota(async (req, res) => {
   const q = new URL(req.url, "http://x").searchParams;
 
   if (req.method === "GET") {
+    // diagnóstico: confere a conexão com o Redis e conta o que está gravado em cada coleção
+    if (q.has("diag")) {
+      const t0 = Date.now();
+      const cols = ["fundos", "controles", "historico", "pessoas", "config", "cofre", "caixaStatus"];
+      const r = await pipeline([["GET", P + "rev"], ["ZCARD", P + "mudancas"], ["HLEN", P + "membros"], ...cols.map((c) => ["HLEN", `${P}col:${c}`])]);
+      return res.status(200).json({
+        ok: true, ms: Date.now() - t0, rev: +r[0] || 0, mudancas: r[1], membros: r[2],
+        colecoes: Object.fromEntries(cols.map((c, i) => [c, r[3 + i]])),
+        voce: { email: m.email, papel: m.papel },
+        servidor: { regiao: process.env.VERCEL_REGION || "", ambiente: process.env.VERCEL_ENV || "", commit: (process.env.VERCEL_GIT_COMMIT_SHA || "").slice(0, 7) },
+      });
+    }
     if (q.has("desde")) {
       const desde = +q.get("desde") || 0, rev = +(await redis("GET", P + "rev")) || 0;
       if (rev <= desde) return res.status(200).json({ rev, mudancas: [] });

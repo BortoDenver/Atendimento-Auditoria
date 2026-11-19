@@ -129,8 +129,17 @@
           importando.feito += parte.length; avisa();
         }
       }
-      importando.fim = true; avisa();
       await consultaMudancas(); // traz os registros novos para a tela, sem recarregar
+      // confere no servidor o que ficou gravado
+      try {
+        const d = await api("/api/db?diag=1");
+        const esperado = {}; for (const l of lotes) for (const x of l.itens) { const c = x.path.slice(0, x.path.lastIndexOf("/")); esperado[c] = (esperado[c] || 0) + 1; }
+        const faltam = Object.entries(esperado).filter(([c, n]) => (d.colecoes[c] ?? 0) < n);
+        importando.conferido = Object.entries(esperado).map(([c, n]) => `${c}: ${d.colecoes[c] ?? "?"}/${n}`).join(" · ");
+        if (faltam.length) importando.erro = "O servidor não confirmou todos os registros (" + importando.conferido + "). Tente importar de novo.";
+      } catch (e) { importando.conferido = ""; }
+      importando.fim = true; avisa();
+      if (importando.erro) throw erro("upstream_error", importando.erro);
       return total;
     } catch (e) {
       importando.erro = e.message || "Falha na importação."; importando.fim = true; avisa(); throw e;
@@ -149,6 +158,7 @@
     trocarSenha: (atual, nova) => post("/api/auth", { acao: "trocar", atual, nova }),
     sair: async () => { try { await post("/api/auth", { acao: "sair" }); } catch (e) {} location.reload(); },
     importar: importarArquivos,
+    diagnostico: () => api("/api/db?diag=1"),
     importando: () => (importando ? { ...importando } : null),
     sync: estadoSync,
     sincronizarAgora: () => consultaMudancas(true),
