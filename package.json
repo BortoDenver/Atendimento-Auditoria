@@ -1,0 +1,7 @@
+{
+  "name": "denver-pbc",
+  "private": true,
+  "description": "Denver PBC — Atendimento a Auditoria (hospedagem própria: Vercel + Redis)",
+  "engines": { "node": ">=18" },
+  "scripts": {}
+}

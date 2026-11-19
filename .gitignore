@@ -1,0 +1,10 @@
+# dados exportados (contêm senhas) — nunca enviar ao Git
+dados/
+.env
+.env.*
+!.env.example
+.vercel
+node_modules
+
+# pacotes gerados
+*.zip
