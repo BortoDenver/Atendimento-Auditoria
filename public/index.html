@@ -1473,7 +1473,7 @@ async function pidReceber(dados, alvo) {
     }
     const fim = await window.pbc.portalId({ acao: "finalizar", inicio, ciclos: ciclos.length, resumo: tot, usuarioPortal: dados.usuario || "" });
     await window.pbc.sincronizarAgora().catch(() => {});
-    const texto = `${ciclos.length} fundos lidos · ${tot.tarefas} tarefa(s) nova(s) na caixa de entrada${tot.concluidasAuto ? ` · ${tot.concluidasAuto} concluída(s) porque o portal já recebeu o documento` : ""}.`;
+    const texto = `${ciclos.length} fundos lidos · ${tot.tarefas} tarefa(s) nova(s) na caixa de entrada${tot.concluidasAuto ? ` · ${tot.concluidasAuto} concluída(s) automaticamente (documento recebido no portal ou coberto pelas Conciliações mensais)` : ""}.`;
     S.pid.rec = null; S.pid.aba = "entrada";
     toast("Portal ID: " + texto); pidAvisa(alvo, "fim", (fim.inicial ? "primeira carga: " : "") + texto); render();
   } catch (e) {

@@ -129,6 +129,7 @@ O portal bloqueia acessos de servidores e não tem API liberada, então a leitur
 
 O que vira tarefa (só o que foi enviado por terceiros; nada do que a Denver escreve):
 - **Subitem pedido**: subitem novo pendente no checklist do portal. Sai sozinho da caixa de entrada quando o portal marca o documento como recebido ou validado.
+  - Regra das conciliações: quando o item **"Conciliações mensais"** do fundo tem anexo, os subitens de **balancetes mensais** e **razão contábil** contam como feitos e vão direto para Concluídos ("Feito: Conciliações mensais com anexo no portal"). Não vale para balancete de empresas investidas. A regra fica em `ehConciliacaoMensal` e `cobertoPelaConciliacao`, em `api/portalid.js`.
 - **Subitem devolvido**: subitem que voltou para pendente.
 - **Comentário**: observação nova num subitem.
 - **Pedido avulso**: pedido de documento feito pelo auditor na conversa do fundo.

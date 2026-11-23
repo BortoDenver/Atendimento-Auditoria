@@ -20,6 +20,18 @@ function cnpjFmt(v) {
 // "terceiro" = qualquer um que não seja a Denver (auditor ou equipe da ID)
 const daDenver = (autor, tipo) => /denver/i.test(String(autor || "")) || String(tipo || "").toUpperCase() === "CONTADOR";
 const nomeAutor = (a) => txt(String(a || "").replace(/\s*\(.*$/, ""), 200);
+const semAcento = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+// "Conciliações mensais" (com ou sem acento, no singular ou plural)
+const ehConciliacaoMensal = (t) => /conciliac(ao|oes)\s+mensa(l|is)/.test(semAcento(t));
+// balancetes mensais e razão contábil do fundo (ex.: "1.1 Balancete contábil mensal…", "11. Balancetes mensais…",
+// "12. Razão contábil do período…", "3. Razão do período auditado"). Não vale para a própria conciliação
+// (há itens "Conciliações mensais (balancete, razão, …)") nem para balancete de empresas investidas.
+const cobertoPelaConciliacao = (t) => {
+  const n = semAcento(t);
+  if (ehConciliacaoMensal(t) || /investid/.test(n)) return false;
+  return /balancete/.test(n) || /\brazao\b/.test(n);
+};
+const MOTIVO_CONCILIACAO = "Feito: Conciliações mensais com anexo no portal";
 
 // Compara um ciclo com a fotografia anterior e devolve {base, tarefas, fechar}.
 // tarefas: novas tarefas (só são gravadas se ainda não existirem); fechar: ids de tarefas de subitem que o portal já resolveu.
@@ -32,7 +44,11 @@ function analisaCiclo(bruto, ant, agora, inicial) {
   const corte = inicial ? new Date(Date.parse(agora) - JANELA_INICIAL_DIAS * 86400000).toISOString() : "";
   const recente = (em) => !inicial || (em && em >= corte);
   const tarefas = [], fechar = [];
-  const nova = (tipo, origemId, t) => tarefas.push({ id: chave(`${tipo}-${cicloId}-${origemId}`), tipo, ...fundo, ...t, chegouEm: agora, status: "aberta", resp: null, cargaInicial: inicial });
+  const nova = (tipo, origemId, t) => tarefas.push({ id: chave(`${tipo}-${cicloId}-${origemId}`), tipo, ...fundo, chegouEm: agora, status: "aberta", resp: null, cargaInicial: inicial, ...t });
+
+  // Regra da equipe: se o item "Conciliações mensais" do fundo tem anexo, os balancetes mensais e o razão contábil
+  // já estão entregues junto. Esses subitens não ficam na caixa de entrada (entram direto em Concluídos).
+  const conciliacaoComAnexo = (D.itens || []).some((it) => it && !it.secao && ehConciliacaoMensal(it.texto) && (it.anexos || []).length > 0);
 
   const nomeItem = {}, itensBase = {};
   for (const it of D.itens || []) {
@@ -41,9 +57,13 @@ function analisaCiclo(bruto, ant, agora, inicial) {
     const nome = txt(it.texto, 500) || "(sem nome)";
     nomeItem[iid] = nome; itensBase[iid] = st;
     if (st === "PENDENTE") {
+      const coberto = conciliacaoComAnexo && cobertoPelaConciliacao(nome);
       // subitem pedido (novo) ou devolvido para pendente pelo auditor
-      if (!antes && !it.criadoPeloContador) nova("item", iid, { titulo: nome, texto: "Documento solicitado no checklist do portal.", itemId: iid, em: null });
-      else if (antes && antes !== "PENDENTE") nova("devolvido", `${iid}-${agora}`, { titulo: nome, texto: `Voltou para pendente (antes: ${antes === "RECEBIDO" ? "recebido" : "validado"}).`, itemId: iid, em: null });
+      if (!antes && !it.criadoPeloContador) nova("item", iid, { titulo: nome, texto: "Documento solicitado no checklist do portal.", itemId: iid, em: null,
+        ...(coberto ? { status: "concluida", concluidaEm: agora, concluidaPor: null, auto: MOTIVO_CONCILIACAO } : {}) });
+      else if (antes && antes !== "PENDENTE" && !coberto) nova("devolvido", `${iid}-${agora}`, { titulo: nome, texto: `Voltou para pendente (antes: ${antes === "RECEBIDO" ? "recebido" : "validado"}).`, itemId: iid, em: null });
+      // a conciliação pode ter recebido o anexo depois: conclui a tarefa do subitem que ainda estiver aberta
+      if (coberto) fechar.push({ id: chave(`item-${cicloId}-${iid}`), motivo: MOTIVO_CONCILIACAO });
     } else if (antes === "PENDENTE" || !antes) {
       // o portal registrou o documento: a tarefa do subitem (se houver) pode ser concluída
       fechar.push({ id: chave(`item-${cicloId}-${iid}`), motivo: st === "VALIDADO" ? "Validado no portal" : "Recebido no portal" });
@@ -114,8 +134,10 @@ module.exports = rota(async (req, res) => {
     await pipeline(baseCmds);
     if (paths.length || fundoPaths.length) await registraMudanca([...paths, ...fundoPaths]);
     const porTipo = {};
-    for (const t of criadasLista) porTipo[t.tipo] = (porTipo[t.tipo] || 0) + 1;
-    return res.status(200).json({ inicial, tarefas: criadasLista.length, porTipo, concluidasAuto });
+    const abertas = criadasLista.filter((t) => t.status === "aberta");
+    for (const t of abertas) porTipo[t.tipo] = (porTipo[t.tipo] || 0) + 1;
+    // subitens que já nascem concluídos (regra das conciliações mensais) contam como concluídos automaticamente
+    return res.status(200).json({ inicial, tarefas: abertas.length, porTipo, concluidasAuto: concluidasAuto + criadasLista.length - abertas.length });
   }
 
   if (b.acao === "finalizar") {
