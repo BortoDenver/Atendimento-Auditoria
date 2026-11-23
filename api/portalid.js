@@ -7,7 +7,7 @@
 // Tarefas nunca são sobrescritas (HSETNX): responsável e conclusão definidos na ferramenta são preservados.
 const { redis, pipeline, P, exigeMembro, podeEscrever, corpoJson, rota, registraMudanca } = require("./_lib");
 
-const BASE = P + "col:pidBase", TAREFAS = P + "col:pidTarefas", CFG = "pidSync";
+const BASE = P + "col:pidBase", TAREFAS = P + "col:pidTarefas", FUNDOS = P + "col:pidFundos", CFG = "pidSync";
 const JANELA_INICIAL_DIAS = 15; // na primeira carga, comentários e mensagens mais antigos que isso não viram tarefa
 const idOk = (s) => /^[A-Za-z0-9_\-.~:@+]{1,200}$/.test(String(s || ""));
 const chave = (s) => String(s || "").replace(/[^A-Za-z0-9_\-.]/g, "_").slice(0, 150);
@@ -26,7 +26,8 @@ const nomeAutor = (a) => txt(String(a || "").replace(/\s*\(.*$/, ""), 200);
 function analisaCiclo(bruto, ant, agora, inicial) {
   const L = (bruto && bruto.lista) || {}, D = (bruto && bruto.det) || {}, C = D.ciclo || {};
   const cicloId = String(L.id || C.id || "");
-  const fundo = { cicloId, fundo: txt(C.fundoNome || L.fundoNome, 300) || "(sem nome)", cnpj: cnpjFmt(C.cnpj || L.cnpj), auditor: txt(C.auditor, 200), mesFindo: txt(C.mesFindo || L.mesFindo, 10) };
+  const fundo = { cicloId, fundo: txt(C.fundoNome || L.fundoNome, 300) || "(sem nome)", cnpj: cnpjFmt(C.cnpj || L.cnpj), auditor: txt(C.auditor, 200),
+    mesFindo: txt(C.mesFindo || L.mesFindo, 10), modalidade: txt(C.modalidade || L.modalidade, 40), analista: txt(C.analista || L.analista, 200), tipoFundo: txt(C.tipo || L.tipo, 40) };
   const antItens = (ant && ant.itens) || {}, antObs = new Set((ant && ant.obs) || []), antConv = new Set((ant && ant.conv) || []);
   const corte = inicial ? new Date(Date.parse(agora) - JANELA_INICIAL_DIAS * 86400000).toISOString() : "";
   const recente = (em) => !inicial || (em && em >= corte);
@@ -66,7 +67,7 @@ function analisaCiclo(bruto, ant, agora, inicial) {
     nova(pedido ? "pedido" : "mensagem", mid, { titulo: pedido ? "Pedido avulso de documento" : "Mensagem na conversa do fundo", texto: txt(m.mensagem, 4000), autor: nomeAutor(m.autor), autorTipo: txt(m.autorTipo, 40), em: iso(m.criadoEm) });
   }
 
-  return { base: { ...fundo, itens: itensBase, obs: obsIds, conv: convIds, vistoEm: agora }, tarefas, fechar };
+  return { fundo, base: { ...fundo, itens: itensBase, obs: obsIds, conv: convIds, vistoEm: agora }, tarefas, fechar };
 }
 
 module.exports = rota(async (req, res) => {
@@ -82,11 +83,16 @@ module.exports = rota(async (req, res) => {
     const inicial = !(await redis("HGET", P + "col:config", CFG));
     const ids = ciclos.map((c) => String((c.lista && c.lista.id) || c.det.ciclo.id));
     const antes = await pipeline(ids.map((id) => ["HGET", BASE, id]));
-    const novas = [], fechar = [], baseCmds = [];
+    const fundosAnt = await pipeline(ids.map((id) => ["HGET", FUNDOS, id]));
+    const novas = [], fechar = [], baseCmds = [], fundoPaths = [];
     ciclos.forEach((c, i) => {
       const r = analisaCiclo(c, antes[i] ? JSON.parse(antes[i]) : null, agora, inicial);
       novas.push(...r.tarefas); fechar.push(...r.fechar);
       baseCmds.push(["HSET", BASE, r.base.cicloId, JSON.stringify(r.base)]);
+      // dados do fundo (nome, CNPJ, mês findo, modalidade, analista…) ficam num cadastro à parte, sempre atualizado,
+      // para as tarefas já existentes também mostrarem a informação mais recente
+      const f = JSON.stringify(r.fundo);
+      if (fundosAnt[i] !== f) { baseCmds.push(["HSET", FUNDOS, r.fundo.cicloId, f]); fundoPaths.push("pidFundos/" + r.fundo.cicloId); }
     });
     // cria só as tarefas que ainda não existem
     const criadas = novas.length ? await pipeline(novas.map((t) => ["HSETNX", TAREFAS, t.id, JSON.stringify(t)])) : [];
@@ -106,7 +112,7 @@ module.exports = rota(async (req, res) => {
       concluidasAuto = cmds.length;
     }
     await pipeline(baseCmds);
-    if (paths.length) await registraMudanca(paths);
+    if (paths.length || fundoPaths.length) await registraMudanca([...paths, ...fundoPaths]);
     const porTipo = {};
     for (const t of criadasLista) porTipo[t.tipo] = (porTipo[t.tipo] || 0) + 1;
     return res.status(200).json({ inicial, tarefas: criadasLista.length, porTipo, concluidasAuto });

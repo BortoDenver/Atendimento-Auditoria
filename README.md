@@ -139,7 +139,7 @@ Como funciona:
 - **Primeira busca**: entram todos os subitens pendentes e os comentários, pedidos e mensagens dos últimos 15 dias (`JANELA_INICIAL_DIAS` em `api/portalid.js`). Depois, só o que for novo.
 - Buscar de novo nunca duplica tarefas nem apaga responsável ou conclusão.
 - **Só leitura no portal.** Usa apenas a consulta `portalConsulta` (`meusCiclos` e `ciclo` com `visita:false`, para não marcar novidades como lidas lá). A sessão do portal nunca sai do navegador.
-- Os dados ficam nas coleções `pidTarefas` (as tarefas) e `pidBase` (a última leitura de cada fundo, usada só para comparar), e o resumo da última busca em `config/pidSync`.
+- Os dados ficam nas coleções `pidTarefas` (as tarefas), `pidFundos` (nome, CNPJ, mês findo, modalidade e analista de cada fundo, atualizados a cada busca) e `pidBase` (a última leitura de cada fundo, usada só para comparar), e o resumo da última busca em `config/pidSync`.
 - Se a ID mudar o portal e o favorito parar de funcionar, ajuste `pidFavorito` em `public/index.html` e arraste o botão de novo para a barra de favoritos.
 ---
 

@@ -287,6 +287,8 @@ h2 { margin: 0; font-size: 15px; font-weight: 700; }
 .pid-fav { cursor: grab; margin: 0 2px; }
 .pid-passos summary { cursor: pointer; font-size: 13px; color: var(--accent); font-weight: 600; margin-bottom: 8px; }
 .pid-lote { padding: 2px 4px; }
+.pid-dados { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; margin: 2px 0 4px; }
+.pid-dados small { color: var(--muted); font-size: 12px; }
 .pid-tarefa { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line-2); align-items: start; }
 .pid-tarefa:last-child { border-bottom: none; }
 .pid-tarefa.feita { opacity: .75; }
@@ -656,7 +658,7 @@ const S = {
   db: null, user: null, me: null, canWrite: true, loaded: false, timedOut: false, isOwner: false, carga: null, importando: null,
   fundos: new Map(), pessoas: [], profiles: {},
   view: { name: "home" }, filters: {}, sel: new Set(), selEntrega: "", closed: new Set(["done"]), openSub: new Set(), showDone: new Set(), ctl: new Map(), cofre: null, cofreVer: new Set(), ctlTab: lsGet("aa.ctl") || "", ctlQ: "", ctlOpen: new Set(), ctlEdit: null, mcp: undefined, ckModelo: null, cxDocs: new Map(), cxSt: new Map(), cxSync: null, cxUnsub: null, cxCarregado: false, cxJanela: 30, cxFundosCache: new Map(), cxBusca: { rodando: false, log: {}, sel: { outlook: true, teams: true, slack: true }, desde: "ultima" }, cxF: { canal: "", origem: "", fundo: false, tratadas: false, auto: false, q: "" }, cxOpen: new Set(), cxVinc: null, showSent: false, tab: "docs", hist: null, histUnsub: null,
-  pid: { tarefas: new Map(), info: null, carregado: false, unsub: null, rec: null, aba: "entrada", open: new Set(), sel: new Set(), f: { q: "", tipo: "", resp: "", aud: "" } },
+  pid: { tarefas: new Map(), fundos: new Map(), info: null, carregado: false, unsub: null, rec: null, aba: "entrada", open: new Set(), sel: new Set(), f: { q: "", tipo: "", resp: "", aud: "", mes: "", mod: "", ana: "" } },
 };
 // o favorito do Portal ID abre a ferramenta em /#portalid
 if (location.hash === "#portalid") { S.view = { name: "portalid" }; S.pid.aguardando = true; try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
@@ -1320,7 +1322,12 @@ const PID_APP = "pbc-portalid";
 const PID_TIPOS = {
   item: { n: "Subitem pedido", c: "warn" }, devolvido: { n: "Subitem devolvido", c: "late" }, comentario: { n: "Comentário", c: "info" },
   pedido: { n: "Pedido avulso", c: "warn" }, mensagem: { n: "Mensagem", c: "" } };
-const pidLista = () => [...S.pid.tarefas.values()];
+// cada tarefa recebe os dados atuais do fundo (cadastro pidFundos, atualizado a cada busca)
+const pidLista = () => [...S.pid.tarefas.values()].map((t) => { const f = S.pid.fundos.get(t.cicloId); return f ? { ...t, ...f, id: t.id } : t; });
+const PID_MOD = { EXERCICIO: "Exercício", EVENTO: "Evento", EVENTO_LIQUIDACAO: "Evento · Liquidação", EVENTO_TRANSFERENCIA: "Evento · Transferência",
+  EVENTO_CISAO_TRANSFORMACAO_FUSAO: "Evento · Cisão, transformação ou fusão", EVENTO_INCORPORACAO: "Evento · Incorporação" };
+const pidModNome = (m) => (!m ? "" : PID_MOD[String(m).toUpperCase()] || String(m).charAt(0).toUpperCase() + String(m).slice(1).toLowerCase().replace(/_/g, " "));
+const PID_MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 const pidAbertas = () => pidLista().filter((t) => t.status !== "concluida");
 const pidDataRef = (t) => t.em || t.chegouEm || "";
 function pidFundoPbc(t) {
@@ -1335,6 +1342,7 @@ function pidAssinar() {
     for (const id of [...S.pid.sel]) if (!S.pid.tarefas.has(id)) S.pid.sel.delete(id);
     if (S.view.name === "portalid") render(); else renderNav();
   }, () => { S.pid.carregado = true; });
+  S.db.collection("pidFundos").onSnapshot((snap) => { S.pid.fundos = new Map(snap.docs.map((d) => [d.id, d.data()])); if (S.view.name === "portalid") render(); }, () => {});
   S.db.doc("config/pidSync").onSnapshot((s) => { S.pid.info = s.exists ? s.data() : null; if (S.view.name === "portalid") render(); }, () => {});
 }
 async function pidSalvar(ids, patch, msg) {
@@ -1496,10 +1504,14 @@ function renderPortalId() {
   const F = S.pid.f, info = S.pid.info, rec = S.pid.rec, qn = norm(F.q), conc = S.pid.aba === "concluidos";
   const todas = pidLista(), abertas = todas.filter((t) => t.status !== "concluida");
   const base = conc ? todas.filter((t) => t.status === "concluida") : abertas;
-  const auditores = [...new Set(todas.map((t) => t.auditor).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const valores = (k) => [...new Set(todas.map((t) => t[k]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+  const auditores = valores("auditor"), modalidades = valores("modalidade"), analistas = valores("analista");
+  const meses = PID_MESES.filter((m) => todas.some((t) => t.mesFindo === m)).concat(valores("mesFindo").filter((m) => !PID_MESES.includes(m)));
   const vis = base.filter((t) => (!F.tipo || t.tipo === F.tipo) && (!F.aud || t.auditor === F.aud)
+    && (!F.mes || (F.mes === "none" ? !t.mesFindo : t.mesFindo === F.mes)) && (!F.mod || (F.mod === "none" ? !t.modalidade : t.modalidade === F.mod))
+    && (!F.ana || (F.ana === "none" ? !t.analista : t.analista === F.ana))
     && (!F.resp || (F.resp === "none" ? !t.resp : F.resp === "me" ? t.resp === S.me?.id : t.resp === F.resp))
-    && (!qn || norm([t.fundo, t.cnpj, t.titulo, t.texto, t.autor].join(" ")).includes(qn)))
+    && (!qn || norm([t.fundo, t.cnpj, t.titulo, t.texto, t.autor, t.analista].join(" ")).includes(qn)))
     .sort((a, b) => conc ? String(b.concluidaEm || "").localeCompare(String(a.concluidaEm || "")) : pidDataRef(b).localeCompare(pidDataRef(a)));
   const sel = [...S.pid.sel].filter((id) => vis.some((t) => t.id === id));
   const respOpts = (v) => `<option value="">Sem responsável</option>${equipeIds().map((id) => `<option value="${esc(id)}"${id === v ? " selected" : ""}>${esc(pname(id))}</option>`).join("")}${v && !equipeIds().includes(v) ? `<option value="${esc(v)}" selected>${esc(pname(v))}</option>` : ""}`;
@@ -1528,8 +1540,11 @@ function renderPortalId() {
     <input data-k="pid.q" data-pidq value="${esc(F.q)}" placeholder="Buscar fundo, CNPJ, subitem ou texto" style="flex:1 1 240px" aria-label="Buscar no Portal ID">
     <select data-pidf="tipo" aria-label="Tipo"><option value="">Todos os tipos</option>${Object.entries(PID_TIPOS).map(([k, v]) => `<option value="${k}"${F.tipo === k ? " selected" : ""}>${v.n}</option>`).join("")}</select>
     <select data-pidf="resp" aria-label="Responsável"><option value="">Todos os responsáveis</option><option value="me"${F.resp === "me" ? " selected" : ""}>Minhas</option><option value="none"${F.resp === "none" ? " selected" : ""}>Sem responsável</option>${equipeIds().map((id) => `<option value="${esc(id)}"${F.resp === id ? " selected" : ""}>${esc(pname(id))}</option>`).join("")}</select>
+    <select data-pidf="mod" aria-label="Modalidade"><option value="">Todas as modalidades</option>${modalidades.map((m) => `<option value="${esc(m)}"${F.mod === m ? " selected" : ""}>${esc(pidModNome(m))}</option>`).join("")}<option value="none"${F.mod === "none" ? " selected" : ""}>Sem modalidade</option></select>
+    <select data-pidf="mes" aria-label="Mês findo"><option value="">Todos os meses findos</option>${meses.map((m) => `<option${F.mes === m ? " selected" : ""}>${esc(m)}</option>`).join("")}<option value="none"${F.mes === "none" ? " selected" : ""}>Sem mês findo</option></select>
+    <select data-pidf="ana" aria-label="Analista"><option value="">Todos os analistas</option>${analistas.map((a) => `<option${F.ana === a ? " selected" : ""}>${esc(a)}</option>`).join("")}<option value="none"${F.ana === "none" ? " selected" : ""}>Sem analista</option></select>
     <select data-pidf="aud" aria-label="Auditor"><option value="">Todos os auditores</option>${auditores.map((a) => `<option${F.aud === a ? " selected" : ""}>${esc(a)}</option>`).join("")}</select>
-    ${F.q || F.tipo || F.resp || F.aud ? `<button class="btn ghost sm" data-act="pid-limpar">Limpar filtros</button>` : ""}
+    ${F.q || F.tipo || F.resp || F.aud || F.mes || F.mod || F.ana ? `<button class="btn ghost sm" data-act="pid-limpar">Limpar filtros</button>` : ""}
   </div>`;
   if (S.canWrite && vis.length) h += `<div class="row pid-lote"><label class="row" style="gap:6px;font-size:13px"><input type="checkbox" data-pidtodas${sel.length && sel.length === Math.min(vis.length, 300) ? " checked" : ""}> Selecionar ${sel.length ? `(${sel.length})` : "todas"}</label>
     ${sel.length ? `<select data-pidlote aria-label="Atribuir as selecionadas"><option value="__">Atribuir a…</option>${respOpts("").replace(' selected', "")}</select>
@@ -1542,7 +1557,8 @@ function renderPortalId() {
     h += `<article class="pid-tarefa${conc ? " feita" : ""}" data-pidt="${esc(t.id)}">
       ${S.canWrite ? `<input type="checkbox" data-pidsel${S.pid.sel.has(t.id) ? " checked" : ""} aria-label="Selecionar tarefa">` : "<span></span>"}
       <div style="min-width:0">
-        <div class="cx-top"><span class="chip ${tp.c}">${esc(tp.n)}</span><b>${esc(t.fundo)}</b><span>${esc(t.cnpj || "")}</span>${t.auditor ? `<span>${esc(t.auditor)}</span>` : ""}</div>
+        <div class="cx-top"><span class="chip ${tp.c}">${esc(tp.n)}</span><b>${esc(t.fundo)}</b><span>${esc(t.cnpj || "")}</span></div>
+        <div class="pid-dados"><span><small>Mês findo:</small> ${esc(t.mesFindo || "—")}</span><span><small>Modalidade:</small> ${esc(pidModNome(t.modalidade) || "—")}</span><span><small>Analista:</small> ${esc(t.analista || "—")}</span>${t.auditor ? `<span><small>Auditor:</small> ${esc(t.auditor)}</span>` : ""}</div>
         <div class="cx-ass">${esc(t.titulo || "")}</div>
         ${t.texto ? `<div class="cx-txt${aberto ? " full" : ""}">${t.autor ? `<b>${esc(t.autor)}:</b> ` : ""}${esc(t.texto)}</div>` : ""}
         <div class="cx-top" style="margin-top:4px"><span>${t.em ? "Enviado " + esc(quando(t.em)) : t.cargaInicial ? "Pendente no portal na primeira carga" : "Apareceu no portal " + esc(quando(t.chegouEm))}</span>
@@ -1928,7 +1944,7 @@ document.addEventListener("click", async (e) => {
     if (act === "pid-concluir-sel") { const ids = [...P_.sel]; P_.sel.clear(); return pidConcluir(ids); }
     if (act === "pid-reabrir-sel") { const ids = [...P_.sel]; P_.sel.clear(); return pidReabrir(ids); }
     if (act === "pid-sel-limpar") { P_.sel.clear(); return render(); }
-    if (act === "pid-limpar") { P_.f = { q: "", tipo: "", resp: "", aud: "" }; return render(); }
+    if (act === "pid-limpar") { P_.f = { q: "", tipo: "", resp: "", aud: "", mes: "", mod: "", ana: "" }; return render(); }
     return;
   }
   if (act === "toggle-group") { const k = t.dataset.k; S.closed.has(k) ? S.closed.delete(k) : S.closed.add(k); return render(); }
