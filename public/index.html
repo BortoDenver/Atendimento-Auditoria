@@ -659,7 +659,7 @@ const S = {
   pid: { tarefas: new Map(), info: null, carregado: false, unsub: null, rec: null, aba: "entrada", open: new Set(), sel: new Set(), f: { q: "", tipo: "", resp: "", aud: "" } },
 };
 // o favorito do Portal ID abre a ferramenta em /#portalid
-if (location.hash === "#portalid") { S.view = { name: "portalid" }; try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
+if (location.hash === "#portalid") { S.view = { name: "portalid" }; S.pid.aguardando = true; try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
 try { const v = JSON.parse(lsGet("aa.view") || "null"); if (v && v.name && v.name !== "fund" && !(v.name === "board" && v.aba === "OUTROS")) S.view = v; } catch (e) {}
 
 // ---------------- Pessoas ----------------
@@ -1351,68 +1351,98 @@ const pidAtribuir = (ids, resp) => pidSalvar(ids, { resp: resp || null }, (n) =>
 function pidFavorito() {
   var PBC = "__PBC__", APP = "pbc-portalid";
   if (location.hostname !== "juraudit.idcorretora.com.br") { alert("Use este favorito com o portal da ID aberto (juraudit.idcorretora.com.br) e logado."); return; }
-  if (window.__pbcPid) { alert("O envio ao Denver PBC já está em andamento."); return; }
+  if (window.__pbcPid) { alert("O envio ao Denver PBC já está em andamento. Veja o aviso no canto da tela."); return; }
   window.__pbcPid = 1;
   var win = window.open(PBC + "/#portalid", "pbc_portalid");
   var box = document.createElement("div");
   box.style.cssText = "position:fixed;z-index:2147483647;right:16px;bottom:16px;max-width:380px;background:#1d5c54;color:#fff;font:14px/1.45 system-ui,sans-serif;padding:14px 16px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.35)";
   document.body.appendChild(box);
-  var msg = function (t) { box.textContent = "Denver PBC · " + t; };
-  var fim = function (t) { msg(t); window.__pbcPid = 0; setTimeout(function () { box.remove(); }, 15000); };
+  var ligado = false;
+  var manda = function (tipo, texto) { if (ligado && win && !win.closed) try { win.postMessage({ app: APP, tipo: tipo, texto: texto }, PBC); } catch (e) {} };
+  var msg = function (t) { box.textContent = "Denver PBC · " + t; manda("lendo", t); };
+  var fim = function (t) { box.textContent = "Denver PBC · " + t; window.__pbcPid = 0; setTimeout(function () { box.remove(); }, 20000); };
   var espera = function (ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); };
+  // espera o Denver PBC carregar (e o login, se ele pedir) e responder "pronto"
+  var conecta = function (limiteMs) {
+    return new Promise(function (ok) {
+      if (!win) return ok(false);
+      var t0 = Date.now(), iv, h = function (e) {
+        if (e.origin !== PBC || !e.data || e.data.app !== APP || e.data.tipo !== "pronto") return;
+        clearInterval(iv); window.removeEventListener("message", h); ok(true);
+      };
+      window.addEventListener("message", h);
+      iv = setInterval(function () {
+        if (win.closed || Date.now() - t0 > limiteMs) { clearInterval(iv); window.removeEventListener("message", h); return ok(false); }
+        try { win.postMessage({ app: APP, tipo: "ola" }, PBC); } catch (e) {}
+      }, 700);
+    });
+  };
   (async function () {
     try {
+      box.textContent = "Denver PBC · conectando à aba do Denver PBC (se ele pedir login, entre por lá)…";
+      ligado = await conecta(3 * 60000);
+      // sessão do portal: usa o token salvo pelo portal e, se venceu, renova com o refresh token (só em memória)
       var k = Object.keys(localStorage).find(function (x) { return /^CognitoIdentityServiceProvider\..+\.LastAuthUser$/.test(x); });
-      if (!k) throw new Error("Você não está logado no portal. Entre e clique no favorito de novo.");
-      var tok = localStorage.getItem(k.replace(/LastAuthUser$/, "") + localStorage.getItem(k) + ".idToken");
-      var exp = 0; try { exp = JSON.parse(atob(tok.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).exp * 1000; } catch (e) {}
-      if (!tok || exp < Date.now() + 120000) throw new Error("A sessão do portal expirou. Recarregue a página do portal (F5) e clique no favorito de novo.");
+      if (!k) throw new Error("você não está logado no portal. Entre no portal e clique no favorito de novo.");
+      var pre = k.replace(/LastAuthUser$/, "") + localStorage.getItem(k), clientId = k.split(".")[1];
+      var tok = localStorage.getItem(pre + ".idToken") || "";
+      var corpoTok = function (t) { try { return JSON.parse(decodeURIComponent(escape(atob(t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))))); } catch (e) { return {}; } };
+      var renova = async function () {
+        var rt = localStorage.getItem(pre + ".refreshToken"), iss = corpoTok(tok).iss || "", reg = (iss.match(/cognito-idp\.([a-z0-9-]+)\./) || [])[1] || "sa-east-1";
+        if (!rt) throw new Error("a sessão do portal expirou. Recarregue a página do portal (F5) e clique no favorito de novo.");
+        var r = await fetch("https://cognito-idp." + reg + ".amazonaws.com/", { method: "POST", headers: { "Content-Type": "application/x-amz-json-1.1", "X-Amz-Target": "AWSCognitoIdentityProviderService.InitiateAuth" },
+          body: JSON.stringify({ AuthFlow: "REFRESH_TOKEN_AUTH", ClientId: clientId, AuthParameters: { REFRESH_TOKEN: rt } }) });
+        var j = await r.json().catch(function () { return {}; });
+        if (!r.ok || !j.AuthenticationResult || !j.AuthenticationResult.IdToken) throw new Error("a sessão do portal expirou. Recarregue a página do portal (F5) e clique no favorito de novo.");
+        tok = j.AuthenticationResult.IdToken;
+      };
+      if ((corpoTok(tok).exp || 0) * 1000 < Date.now() + 120000) { msg("renovando a sessão do portal…"); await renova(); }
       var ep = performance.getEntriesByType("resource").map(function (e) { return e.name; }).find(function (n) { return /appsync-api\.[^/]+\/graphql/.test(n); })
         || "https://isyzty6nw5di3igtfxvj2gmo5u.appsync-api.sa-east-1.amazonaws.com/graphql";
       var Q = "query Q($acao:String!,$cicloId:ID,$dados:AWSJSON){portalConsulta(acao:$acao,cicloId:$cicloId,dados:$dados)}";
       var gql = async function (acao, cicloId, dados) {
-        for (var t = 0; t < 4; t++) {
+        var renovou = false;
+        for (var t = 0; t < 5; t++) {
           var r = await fetch(ep, { method: "POST", headers: { "content-type": "application/json", Authorization: tok }, body: JSON.stringify({ query: Q, variables: { acao: acao, cicloId: cicloId, dados: JSON.stringify(dados || {}) } }) });
+          if (r.status === 401 || r.status === 403) { if (renovou) throw new Error("o portal recusou a sessão. Recarregue a página do portal (F5) e tente de novo."); await renova(); renovou = true; continue; }
           if (r.status === 429 || r.status >= 500) { await espera(1500 * (t + 1)); continue; }
-          if (r.status === 401 || r.status === 403) throw new Error("O portal recusou a sessão. Recarregue a página do portal (F5) e tente de novo.");
           var j = await r.json();
-          if (j.errors && j.errors.length) throw new Error("Portal: " + j.errors[0].message);
+          if (j.errors && j.errors.length) {
+            if (!renovou && /unauthor|expired|token/i.test(j.errors[0].message || "")) { await renova(); renovou = true; continue; }
+            throw new Error("o portal respondeu: " + j.errors[0].message);
+          }
           var d = j.data && j.data.portalConsulta;
           return typeof d === "string" ? JSON.parse(d) : d;
         }
-        throw new Error("O portal não respondeu. Tente de novo em alguns minutos.");
+        throw new Error("o portal não respondeu. Tente de novo em alguns minutos.");
       };
-      msg("lendo a lista de fundos…");
+      msg("lendo a lista de fundos no portal…");
       var lista = await gql("meusCiclos", null, {});
       var cs = (lista && lista.ciclos) || [], out = [], i = 0;
-      var trab = async function () { while (i < cs.length) { var c = cs[i++]; out.push({ lista: c, det: await gql("ciclo", c.id, { visita: false }) }); msg("lendo os fundos: " + out.length + " de " + cs.length); await espera(150); } };
+      if (!cs.length) throw new Error("o portal não devolveu nenhum fundo para o seu usuário.");
+      var trab = async function () { while (i < cs.length) { var c = cs[i++]; out.push({ lista: c, det: await gql("ciclo", c.id, { visita: false }) }); if (out.length % 5 === 0 || out.length === cs.length) msg("lendo os fundos no portal: " + out.length + " de " + cs.length); } };
       await Promise.all([trab(), trab(), trab()]);
-      var dados = { app: APP, tipo: "dados", versao: 1, extraidoEm: new Date().toISOString(), usuario: (lista && lista.autor) || "", ciclos: out };
-      if (!win || win.closed) {
+      var dados = { app: APP, tipo: "dados", versao: 2, extraidoEm: new Date().toISOString(), usuario: (lista && lista.autor) || "", ciclos: out };
+      if (!ligado || !win || win.closed) {
         var a = document.createElement("a");
         a.href = URL.createObjectURL(new Blob([JSON.stringify(dados)], { type: "application/json" }));
         a.download = "portal-id-" + dados.extraidoEm.slice(0, 10) + ".json"; document.body.appendChild(a); a.click(); a.remove();
-        fim("o navegador bloqueou a janela do Denver PBC. Salvei o arquivo " + a.download + ": arraste-o na aba Portal ID do Denver PBC.");
+        fim("não consegui falar com a aba do Denver PBC. Salvei o arquivo " + a.download + " em Downloads: na aba Portal ID, use “Importar arquivo .json”.");
         return;
       }
-      msg("aguardando o Denver PBC (se ele pedir login, entre por lá)…");
+      box.textContent = "Denver PBC · enviando ao Denver PBC…";
       var r2 = await new Promise(function (ok, falha) {
-        var enviado = false, t0 = Date.now(), iv;
-        var h = function (e) {
+        var iv, h = function (e) {
           if (e.origin !== PBC || !e.data || e.data.app !== APP) return;
-          if (e.data.tipo === "pronto" && !enviado) { enviado = true; win.postMessage(dados, PBC); msg("enviando ao Denver PBC…"); }
-          else if (e.data.tipo === "progresso") msg(e.data.texto);
+          if (e.data.tipo === "progresso") box.textContent = "Denver PBC · " + e.data.texto;
           else if (e.data.tipo === "fim" || e.data.tipo === "erro") { clearInterval(iv); window.removeEventListener("message", h); e.data.tipo === "fim" ? ok(e.data) : falha(new Error(e.data.texto)); }
         };
         window.addEventListener("message", h);
-        iv = setInterval(function () {
-          if (win.closed) { clearInterval(iv); window.removeEventListener("message", h); falha(new Error("a janela do Denver PBC foi fechada antes de terminar.")); return; }
-          if (!enviado) try { win.postMessage({ app: APP, tipo: "ola" }, PBC); } catch (e) {}
-          if (Date.now() - t0 > 15 * 60000) { clearInterval(iv); window.removeEventListener("message", h); falha(new Error("tempo esgotado esperando o Denver PBC.")); }
-        }, 1000);
+        win.postMessage(dados, PBC);
+        iv = setInterval(function () { if (win.closed) { clearInterval(iv); window.removeEventListener("message", h); falha(new Error("a aba do Denver PBC foi fechada antes de terminar.")); } }, 1000);
       });
       fim("✓ " + r2.texto);
-    } catch (err) { fim("⚠ " + (err && err.message || err)); }
+    } catch (err) { var t = (err && err.message) || String(err); manda("erro", t); fim("⚠ " + t); }
   })();
 }
 const pidFavoritoHref = () => "javascript:" + encodeURIComponent("(" + pidFavorito.toString().replace("__PBC__", location.origin) + ")()");
@@ -1445,7 +1475,15 @@ async function pidReceber(dados, alvo) {
 }
 window.addEventListener("message", (e) => {
   if (e.origin !== PORTAL_ID || !e.data || e.data.app !== PID_APP) return;
-  if (e.data.tipo === "ola") { if (S.loaded && S.db && window.pbc) pidAvisa(e.source, "pronto"); return; }
+  if (e.data.tipo === "ola") {
+    if (!(S.loaded && S.db && window.pbc)) return;
+    pidAvisa(e.source, "pronto"); S.pid.aguardando = false;
+    if (!S.pid.rec || (!S.pid.rec.rodando && !S.pid.rec.lendo)) { S.pid.rec = { lendo: true, texto: "Conectado ao portal. Lendo os fundos…" }; if (S.view.name !== "portalid") go({ name: "portalid" }); else render(); }
+    return;
+  }
+  // andamento e erros da leitura que acontece na aba do portal
+  if (e.data.tipo === "lendo" && !(S.pid.rec && S.pid.rec.rodando)) { S.pid.rec = { lendo: true, texto: String(e.data.texto || "") }; if (S.view.name === "portalid") render(); return; }
+  if (e.data.tipo === "erro" && !(S.pid.rec && S.pid.rec.rodando)) { S.pid.rec = { erro: String(e.data.texto || "erro no portal") }; if (S.view.name === "portalid") render(); return; }
   if (e.data.tipo === "dados") pidReceber(e.data, e.source);
 });
 async function pidArquivo(file) {
@@ -1470,7 +1508,9 @@ function renderPortalId() {
   <section class="card pad pid-sync">
     <div class="row between"><h2>Buscar novidades do portal</h2><span style="font-size:12.5px;color:var(--muted)">${info ? `Última busca ${quando(info.ultima)}${info.porNome ? " por " + esc(info.porNome) : ""} · ${info.tarefas || 0} tarefa(s) nova(s)` : "Nenhuma busca feita ainda"}</span></div>
     ${rec && rec.rodando ? `<div class="bar" style="height:10px"><span style="width:${(rec.feito / rec.total) * 100}%;background:var(--accent)"></span></div><span class="mono" style="font-size:13px">Gravando ${rec.feito} de ${rec.total} fundos… mantenha esta página aberta.</span>`
-      : rec && rec.erro ? `<div class="notice" style="background:var(--late-bg);color:var(--late)">A última busca parou: ${esc(rec.erro)}. Clique no favorito de novo; nada se perde nem se duplica.</div>` : ""}
+      : rec && rec.lendo ? `<div class="notice">${esc(rec.texto.charAt(0).toUpperCase() + rec.texto.slice(1))}. Mantenha a aba do portal aberta; leva cerca de 1 minuto.</div>`
+      : rec && rec.erro ? `<div class="notice" style="background:var(--late-bg);color:var(--late)">A busca parou: ${esc(rec.erro)} Tentar de novo não duplica nem perde nada.</div>`
+      : S.pid.aguardando ? `<div class="notice">Aguardando o portal… Se nada aparecer em alguns segundos, volte à aba do portal e veja o aviso no canto inferior direito.${window.opener ? "" : " Esta aba foi aberta sem ligação com o portal: clique no favorito de novo a partir da aba do portal."}</div>` : ""}
     <details class="pid-passos"${info ? "" : " open"}><summary>Como buscar</summary>
       <ol>
         <li>Uma vez só: arraste o botão <a class="btn sm pri pid-fav" href="${esc(pidFavoritoHref())}" data-act="pid-fav" draggable="true" title="Arraste para a barra de favoritos">★ Enviar ao Denver PBC</a> para a barra de favoritos do navegador.</li>
