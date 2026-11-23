@@ -282,6 +282,30 @@ h2 { margin: 0; font-size: 15px; font-weight: 700; }
 .cx-canal .row b { font-size: 14px; }
 .cx-msg { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line-2); align-items: start; }
 .cx-msg.tratada { opacity: .6; }
+.pid-sync { display: flex; flex-direction: column; gap: 12px; }
+.pid-passos ol { margin: 0 0 10px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; }
+.pid-fav { cursor: grab; margin: 0 2px; }
+.pid-ciclo { border-bottom: 1px solid var(--line-2); }
+.pid-ciclo:last-child { border-bottom: none; }
+.pid-ciclo.removido { opacity: .6; }
+.pid-cab { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; padding: 11px 14px; background: none; border: none; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.pid-cab:hover { background: var(--surface-2); }
+.pid-seta { color: var(--muted); }
+.pid-nome { display: block; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pid-meta { display: block; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pid-cont { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.pid-corpo { padding: 4px 14px 14px 42px; display: flex; flex-direction: column; gap: 10px; }
+.pid-tab { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.pid-lin { display: grid; grid-template-columns: minmax(0, 2.4fr) minmax(0, 1fr) 120px 92px minmax(0, 2fr); gap: 10px; padding: 8px 12px; border-top: 1px solid var(--line-2); font-size: 13px; align-items: start; }
+.pid-lin.pid-th { border-top: none; background: var(--surface-2); font-size: 11.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+.pid-lin.novo { background: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
+.pid-ant { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+.pid-obs small, .pid-msg small { color: var(--muted); }
+.pid-obs { display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.pid-bloco h3 { font-size: 13px; margin: 4px 0 6px; }
+.pid-msg { padding: 8px 10px; border-left: 3px solid var(--line); background: var(--surface-2); border-radius: 0 6px 6px 0; font-size: 13px; margin-bottom: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pid-msg.novo { border-left-color: var(--accent); }
+@media (max-width: 900px) { .pid-lin { grid-template-columns: minmax(0, 1fr) 110px; } .pid-lin > :nth-child(2), .pid-lin > :nth-child(4) { display: none; } .pid-lin > :nth-child(5) { grid-column: 1 / -1; } .pid-th > :nth-child(5) { display: none; } .pid-corpo { padding-left: 14px; } .pid-cab { grid-template-columns: 18px minmax(0, 1fr); } .pid-cont { grid-column: 2; justify-content: flex-start; } }
 .cx-msg.novo { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
 .cx-ico { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 12px; background: var(--cc); }
 .cx-top { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; font-size: 12.5px; color: var(--muted); }
@@ -623,6 +647,7 @@ const ICONES = {
   down: '<path d="m6 9 6 6 6-6"/>',
   ok: '<path d="m5 12 5 5 9-10"/>',
   shield: '<path d="M12 3 4 6v6c0 5 3.4 8.3 8 9 4.6-.7 8-4 8-9V6z"/>',
+  portal: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 13h8M8 16h5"/>',
 };
 const ic = (n, s) => `<svg class="ic" width="${s || 16}" height="${s || 16}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES[n] || ""}</svg>`;
 
@@ -643,7 +668,10 @@ const S = {
   db: null, user: null, me: null, canWrite: true, loaded: false, timedOut: false, isOwner: false, carga: null, importando: null,
   fundos: new Map(), pessoas: [], profiles: {},
   view: { name: "home" }, filters: {}, sel: new Set(), selEntrega: "", closed: new Set(["done"]), openSub: new Set(), showDone: new Set(), ctl: new Map(), cofre: null, cofreVer: new Set(), ctlTab: lsGet("aa.ctl") || "", ctlQ: "", ctlOpen: new Set(), ctlEdit: null, mcp: undefined, ckModelo: null, cxDocs: new Map(), cxSt: new Map(), cxSync: null, cxUnsub: null, cxCarregado: false, cxJanela: 30, cxFundosCache: new Map(), cxBusca: { rodando: false, log: {}, sel: { outlook: true, teams: true, slack: true }, desde: "ultima" }, cxF: { canal: "", origem: "", fundo: false, tratadas: false, auto: false, q: "" }, cxOpen: new Set(), cxVinc: null, showSent: false, tab: "docs", hist: null, histUnsub: null,
+  pid: { docs: new Map(), info: null, carregado: false, unsub: null, rec: null, open: new Set(), msgs: new Set(), f: { q: "", st: "", aud: "", mes: "", novos: false, vazios: false, removidos: false } },
 };
+// o favorito do Portal ID abre a ferramenta em /#portalid
+if (location.hash === "#portalid") { S.view = { name: "portalid" }; try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
 try { const v = JSON.parse(lsGet("aa.view") || "null"); if (v && v.name && v.name !== "fund" && !(v.name === "board" && v.aba === "OUTROS")) S.view = v; } catch (e) {}
 
 // ---------------- Pessoas ----------------
@@ -717,7 +745,8 @@ function renderInner() {
   if (!S.loaded) { el.innerHTML = `<div class="card pad" style="color:var(--muted)">${S.timedOut ? "Os dados estão demorando para responder. Eles aparecem aqui assim que chegarem." : "Carregando os fundos…"}</div>`; return; }
   const q = $("q").value.trim();
   if (v.name === "config") return renderConfig();
-  if (q && v.name !== "fund" && v.name !== "caixa" && v.name !== "controles") return renderBusca(q);
+  if (q && v.name !== "fund" && v.name !== "caixa" && v.name !== "controles" && v.name !== "portalid") return renderBusca(q);
+  if (v.name === "portalid") return renderPortalId();
   if (v.name === "home") return renderHome();
   if (v.name === "board") return renderBoard();
   if (v.name === "fund") return renderFund();
@@ -737,6 +766,7 @@ function renderNav() {
   <div class="nav-sec">
     <button class="nl${on(v.name === "home")}" data-go="home"><span class="lab">${ic("home")}Visão geral</span></button>
     <button class="nl${on(v.name === "caixa")}" data-go="caixa"><span class="lab">${ic("inbox")}Caixa de entrada</span><span class="n">${cxLista().filter((m) => !cxStatus(m) && !m.auto).length || ""}</span></button>
+    <button class="nl${on(v.name === "portalid")}" data-go="portalid"><span class="lab">${ic("portal")}Portal ID</span><span class="n">${pidLista().filter((c) => !c.removidoEm && pidTemNovidade(c)).length || ""}</span></button>
     <button class="nl${on(v.name === "controles")}" data-go="controles"><span class="lab">${ic("book")}Controles internos</span></button>
     <button class="nl${on(v.name === "mine")}" data-go="mine"><span class="lab">${ic("check")}Minhas pendências</span><span class="n">${mine || ""}</span></button>
     <button class="nl${on(v.name === "team")}" data-go="team"><span class="lab">${ic("users")}Equipe</span><span class="n">${S.pessoas.length || ""}</span></button>
@@ -1293,6 +1323,240 @@ async function cxTriar(m, dados) {
   catch (e) { writeErr(e); }
 }
 
+// --- Portal ID Corretora (juraudit): demandas do auditor lidas no navegador de quem está logado no portal
+// Fluxo: o favorito "Enviar ao Denver PBC" roda no portal, lê tudo só com consultas (portalConsulta) e
+// entrega os dados a esta página por postMessage. Esta página grava em lotes via /api/portalid.
+const PORTAL_ID = "https://juraudit.idcorretora.com.br";
+const PID_APP = "pbc-portalid";
+const PID_ST = { PENDENTE: { n: "Pendente", c: "warn" }, RECEBIDO: { n: "Recebido", c: "info" }, VALIDADO: { n: "Validado", c: "ok" } };
+const PID_MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+const pidLista = () => [...S.pid.docs.values()];
+const pidItens = (c) => (c.itens || []).filter((i) => !i.removidoEm);
+const pidUltima = () => (S.pid.info && S.pid.info.ultima) || "";
+// "novidade" = apareceu ou mudou de status na última atualização (a carga inicial não conta)
+const pidItemNovo = (i) => !!pidUltima() && ((!i.cargaInicial && i.vistoEm >= pidUltima()) || (!!i.statusEm && i.statusEm >= pidUltima()));
+const pidCicloNovo = (c) => !!pidUltima() && !c.cargaInicial && c.vistoEm >= pidUltima();
+const pidPedidoNovo = (p) => !!pidUltima() && !p.cargaInicial && p.vistoEm >= pidUltima();
+const pidTemNovidade = (c) => pidCicloNovo(c) || pidItens(c).some(pidItemNovo) || (c.pedidos || []).some(pidPedidoNovo);
+function pidFundoPbc(c) {
+  const d = String(c.cnpj || "").replace(/\D/g, ""); if (!d) return null;
+  for (const f of S.fundos.values()) if (String(f.cnpj || "").replace(/\D/g, "") === d) return f;
+  return null;
+}
+function pidAssinar() {
+  if (S.pid.unsub || !S.db) return;
+  S.pid.unsub = S.db.collection("portalid").onSnapshot((snap) => {
+    S.pid.docs = new Map(snap.docs.map((d) => [d.id, d.data()])); S.pid.carregado = true;
+    if (S.view.name === "portalid") render(); else renderNav();
+  }, () => { S.pid.carregado = true; });
+  S.db.doc("config/portalid").onSnapshot((s) => { S.pid.info = s.exists ? s.data() : null; if (S.view.name === "portalid") render(); }, () => {});
+}
+// Código do favorito. Roda NO PORTAL (não aqui): __PBC__ é trocado pelo endereço desta ferramenta.
+// Só consulta (nunca chama a mutation "portal") e usa visita:false para não marcar novidades como lidas.
+function pidFavorito() {
+  var PBC = "__PBC__", APP = "pbc-portalid";
+  if (location.hostname !== "juraudit.idcorretora.com.br") { alert("Use este favorito com o portal da ID aberto (juraudit.idcorretora.com.br) e logado."); return; }
+  if (window.__pbcPid) { alert("O envio ao Denver PBC já está em andamento."); return; }
+  window.__pbcPid = 1;
+  var win = window.open(PBC + "/#portalid", "pbc_portalid");
+  var box = document.createElement("div");
+  box.style.cssText = "position:fixed;z-index:2147483647;right:16px;bottom:16px;max-width:380px;background:#1d5c54;color:#fff;font:14px/1.45 system-ui,sans-serif;padding:14px 16px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.35)";
+  document.body.appendChild(box);
+  var msg = function (t) { box.textContent = "Denver PBC · " + t; };
+  var fim = function (t) { msg(t); window.__pbcPid = 0; setTimeout(function () { box.remove(); }, 15000); };
+  var espera = function (ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); };
+  (async function () {
+    try {
+      var k = Object.keys(localStorage).find(function (x) { return /^CognitoIdentityServiceProvider\..+\.LastAuthUser$/.test(x); });
+      if (!k) throw new Error("Você não está logado no portal. Entre e clique no favorito de novo.");
+      var tok = localStorage.getItem(k.replace(/LastAuthUser$/, "") + localStorage.getItem(k) + ".idToken");
+      var exp = 0; try { exp = JSON.parse(atob(tok.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).exp * 1000; } catch (e) {}
+      if (!tok || exp < Date.now() + 120000) throw new Error("A sessão do portal expirou. Recarregue a página do portal (F5) e clique no favorito de novo.");
+      var ep = performance.getEntriesByType("resource").map(function (e) { return e.name; }).find(function (n) { return /appsync-api\.[^/]+\/graphql/.test(n); })
+        || "https://isyzty6nw5di3igtfxvj2gmo5u.appsync-api.sa-east-1.amazonaws.com/graphql";
+      var Q = "query Q($acao:String!,$cicloId:ID,$dados:AWSJSON){portalConsulta(acao:$acao,cicloId:$cicloId,dados:$dados)}";
+      var gql = async function (acao, cicloId, dados) {
+        for (var t = 0; t < 4; t++) {
+          var r = await fetch(ep, { method: "POST", headers: { "content-type": "application/json", Authorization: tok }, body: JSON.stringify({ query: Q, variables: { acao: acao, cicloId: cicloId, dados: JSON.stringify(dados || {}) } }) });
+          if (r.status === 429 || r.status >= 500) { await espera(1500 * (t + 1)); continue; }
+          if (r.status === 401 || r.status === 403) throw new Error("O portal recusou a sessão. Recarregue a página do portal (F5) e tente de novo.");
+          var j = await r.json();
+          if (j.errors && j.errors.length) throw new Error("Portal: " + j.errors[0].message);
+          var d = j.data && j.data.portalConsulta;
+          return typeof d === "string" ? JSON.parse(d) : d;
+        }
+        throw new Error("O portal não respondeu. Tente de novo em alguns minutos.");
+      };
+      msg("lendo a lista de fundos…");
+      var lista = await gql("meusCiclos", null, {});
+      var cs = (lista && lista.ciclos) || [], out = [], i = 0;
+      var trab = async function () { while (i < cs.length) { var c = cs[i++]; out.push({ lista: c, det: await gql("ciclo", c.id, { visita: false }) }); msg("lendo os fundos: " + out.length + " de " + cs.length); await espera(150); } };
+      await Promise.all([trab(), trab(), trab()]);
+      var dados = { app: APP, tipo: "dados", versao: 1, extraidoEm: new Date().toISOString(), usuario: (lista && lista.autor) || "", ciclos: out };
+      if (!win || win.closed) {
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(dados)], { type: "application/json" }));
+        a.download = "portal-id-" + dados.extraidoEm.slice(0, 10) + ".json"; document.body.appendChild(a); a.click(); a.remove();
+        fim("o navegador bloqueou a janela do Denver PBC. Salvei o arquivo " + a.download + ": arraste-o na aba Portal ID do Denver PBC.");
+        return;
+      }
+      msg("aguardando o Denver PBC (se ele pedir login, entre por lá)…");
+      var r2 = await new Promise(function (ok, falha) {
+        var enviado = false, t0 = Date.now(), iv;
+        var h = function (e) {
+          if (e.origin !== PBC || !e.data || e.data.app !== APP) return;
+          if (e.data.tipo === "pronto" && !enviado) { enviado = true; win.postMessage(dados, PBC); msg("enviando ao Denver PBC…"); }
+          else if (e.data.tipo === "progresso") msg(e.data.texto);
+          else if (e.data.tipo === "fim" || e.data.tipo === "erro") { clearInterval(iv); window.removeEventListener("message", h); e.data.tipo === "fim" ? ok(e.data) : falha(new Error(e.data.texto)); }
+        };
+        window.addEventListener("message", h);
+        iv = setInterval(function () {
+          if (win.closed) { clearInterval(iv); window.removeEventListener("message", h); falha(new Error("a janela do Denver PBC foi fechada antes de terminar.")); return; }
+          if (!enviado) try { win.postMessage({ app: APP, tipo: "ola" }, PBC); } catch (e) {}
+          if (Date.now() - t0 > 15 * 60000) { clearInterval(iv); window.removeEventListener("message", h); falha(new Error("tempo esgotado esperando o Denver PBC.")); }
+        }, 1000);
+      });
+      fim("✓ " + r2.texto);
+    } catch (err) { fim("⚠ " + (err && err.message || err)); }
+  })();
+}
+const pidFavoritoHref = () => "javascript:" + encodeURIComponent("(" + pidFavorito.toString().replace("__PBC__", location.origin) + ")()");
+const pidAvisa = (alvo, tipo, texto) => { try { alvo && alvo.postMessage({ app: PID_APP, tipo, texto }, PORTAL_ID); } catch (e) {} };
+async function pidReceber(dados, alvo) {
+  if (S.pid.rec && S.pid.rec.rodando) { pidAvisa(alvo, "erro", "já existe uma atualização em andamento no Denver PBC."); return; }
+  const ciclos = dados && Array.isArray(dados.ciclos) ? dados.ciclos.filter((c) => c && c.lista && c.lista.id && c.det) : [];
+  if (!ciclos.length) { toast("O arquivo não tem dados do Portal ID.", true); pidAvisa(alvo, "erro", "nenhum fundo recebido."); return; }
+  if (!window.pbc || !S.canWrite) { toast("Só contribuidores e o dono atualizam o Portal ID.", true); pidAvisa(alvo, "erro", "seu usuário no Denver PBC não pode gravar."); return; }
+  const inicio = new Date().toISOString(), tot = { ciclosNovos: 0, itensNovos: 0, statusMudou: 0, pedidosNovos: 0, obsNovas: 0 };
+  S.pid.rec = { rodando: true, feito: 0, total: ciclos.length, erro: "" };
+  if (S.view.name !== "portalid") go({ name: "portalid" }); else render();
+  try {
+    for (let i = 0; i < ciclos.length; i += 15) {
+      const r = await window.pbc.portalId({ acao: "lote", inicio, ciclos: ciclos.slice(i, i + 15) });
+      for (const k of Object.keys(tot)) tot[k] += +r[k] || 0;
+      S.pid.rec.feito = Math.min(ciclos.length, i + 15);
+      pidAvisa(alvo, "progresso", `gravando no Denver PBC: ${S.pid.rec.feito} de ${ciclos.length}`);
+      render();
+    }
+    const fim = await window.pbc.portalId({ acao: "finalizar", inicio, ids: ciclos.map((c) => String(c.lista.id)), resumo: tot, usuarioPortal: dados.usuario || "" });
+    const texto = fim.inicial ? `histórico carregado: ${ciclos.length} fundos.`
+      : `${ciclos.length} fundos lidos · ${tot.ciclosNovos} fundo(s) novo(s), ${tot.itensNovos} subitem(ns) novo(s), ${tot.statusMudou} mudança(s) de status, ${tot.pedidosNovos} pedido(s) avulso(s) novo(s).`;
+    await window.pbc.sincronizarAgora().catch(() => {});
+    S.pid.rec = null; S.pid.f.novos = !fim.inicial && !!(tot.ciclosNovos || tot.itensNovos || tot.statusMudou || tot.pedidosNovos);
+    toast("Portal ID: " + texto); pidAvisa(alvo, "fim", texto); render();
+  } catch (e) {
+    S.pid.rec = { rodando: false, erro: e.message || "falha ao gravar" }; render();
+    pidAvisa(alvo, "erro", "o Denver PBC não conseguiu gravar (" + (e.message || "erro") + ").");
+  }
+}
+window.addEventListener("message", (e) => {
+  if (e.origin !== PORTAL_ID || !e.data || e.data.app !== PID_APP) return;
+  if (e.data.tipo === "ola") { if (S.loaded && S.db && window.pbc) pidAvisa(e.source, "pronto"); return; }
+  if (e.data.tipo === "dados") pidReceber(e.data, e.source);
+});
+async function pidArquivo(file) {
+  if (!file) return;
+  try { pidReceber(JSON.parse(await file.text()), null); } catch (e) { toast("Não consegui ler o arquivo: " + e.message, true); }
+}
+function renderPortalId() {
+  crumbs(["Portal ID"]);
+  pidAssinar();
+  const F = S.pid.f, info = S.pid.info, rec = S.pid.rec, qn = norm(F.q);
+  const todos = pidLista().filter((c) => F.removidos || !c.removidoEm);
+  const auditores = [...new Set(todos.map((c) => c.auditor).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const itensDe = (c) => pidItens(c).filter((i) => (!F.st || i.status === F.st) && (!F.novos || pidItemNovo(i)) && (!qn || norm(c.nome + " " + c.cnpj + " " + i.nome).includes(qn)));
+  const vis = todos.filter((c) => (!F.aud || c.auditor === F.aud) && (!F.mes || c.mesFindo === F.mes) && (!F.novos || pidTemNovidade(c))
+    && (!qn || norm(c.nome + " " + (c.cnpj || "")).includes(qn) || pidItens(c).some((i) => norm(i.nome).includes(qn)))
+    && (!F.st || pidItens(c).some((i) => i.status === F.st)) && (F.vazios || F.st || pidItens(c).length || (c.pedidos || []).length))
+    .sort((a, b) => (pidTemNovidade(b) - pidTemNovidade(a)) || pidItens(b).filter((i) => i.status === "PENDENTE").length - pidItens(a).filter((i) => i.status === "PENDENTE").length || a.nome.localeCompare(b.nome, "pt-BR"));
+  const it = todos.flatMap(pidItens), cont = (s) => it.filter((i) => i.status === s).length;
+  const ped = todos.reduce((n, c) => n + (c.pedidos || []).length, 0);
+  const novid = todos.filter(pidTemNovidade).length;
+
+  let h = `<section class="row between" style="align-items:flex-end"><div><h1>Portal ID</h1><p class="sub-t">Demandas dos auditores no portal da ID Corretora (administrador: ID). Os dados são lidos no seu navegador, com o seu login no portal, e ficam salvos aqui para toda a equipe. Nada é alterado no portal.</p></div></section>
+  <section class="card pad pid-sync">
+    <div class="row between"><h2>Atualizar</h2><span style="font-size:12.5px;color:var(--muted)">${info ? `Última atualização ${quando(info.ultima)}${info.porNome ? " por " + esc(info.porNome) : ""} · ${info.ciclos} fundos` : "Ainda não foi feita a carga do histórico"}</span></div>
+    ${rec && rec.rodando ? `<div class="bar" style="height:10px"><span style="width:${(rec.feito / rec.total) * 100}%;background:var(--accent)"></span></div><span class="mono" style="font-size:13px">Gravando ${rec.feito} de ${rec.total} fundos… mantenha esta página aberta.</span>`
+      : rec && rec.erro ? `<div class="notice" style="background:var(--late-bg);color:var(--late)">A última atualização parou: ${esc(rec.erro)}. Clique no favorito de novo; o que já foi gravado não se perde.</div>` : ""}
+    ${info && !info.inicial && !(rec && rec.rodando) ? `<div class="row" style="gap:6px">${[["ciclosNovos", "fundo(s) novo(s)"], ["itensNovos", "subitem(ns) novo(s)"], ["statusMudou", "mudança(s) de status"], ["pedidosNovos", "pedido(s) avulso(s)"], ["removidos", "saíram do portal"]].map(([k, n]) => `<span class="chip${info[k] ? " info" : ""}">${info[k] || 0} ${n}</span>`).join("")}</div>` : ""}
+    <div class="pid-passos">
+      <ol>
+        <li>Uma vez só: arraste o botão <a class="btn sm pri pid-fav" href="${esc(pidFavoritoHref())}" data-act="pid-fav" draggable="true" title="Arraste para a barra de favoritos">★ Enviar ao Denver PBC</a> para a barra de favoritos do navegador.</li>
+        <li>Clique em <b>Abrir o portal</b>, entre com o seu login e espere a lista de fundos aparecer.</li>
+        <li>No portal, clique no favorito <b>Enviar ao Denver PBC</b>. Ele lê os fundos (cerca de 1 minuto), abre esta aba e grava tudo. ${info ? "Só entram como novidade os fundos e subitens que ainda não existiam aqui, além das mudanças de status." : "A primeira vez traz o histórico completo."}</li>
+      </ol>
+      <div class="row"><a class="btn pri" href="${PORTAL_ID}/#/portal/meus-fundos" target="_blank" rel="noopener">${ic("refresh", 15)}Abrir o portal para atualizar ↗</a>
+        <label class="btn" style="cursor:pointer">${ic("upload", 15)}Importar arquivo .json<input type="file" accept="application/json,.json" data-pidarq hidden></label></div>
+    </div>
+  </section>`;
+  if (!todos.length) {
+    h += `<div class="card"><div class="empty">${S.pid.carregado ? "Nenhum dado do portal ainda. Siga os passos acima para carregar o histórico." : "Carregando…"}</div></div>`;
+    $("view").innerHTML = h; return;
+  }
+  h += `<section class="kpis">
+    <div class="kpi"><b>${todos.length}</b><span>Fundos no portal</span></div>
+    <button class="kpi warn" data-act="pid-st" data-s="PENDENTE"><b>${cont("PENDENTE")}</b><span>Subitens pendentes</span></button>
+    <button class="kpi" data-act="pid-st" data-s="RECEBIDO"><b>${cont("RECEBIDO")}</b><span>Recebidos pelo auditor</span></button>
+    <button class="kpi" data-act="pid-st" data-s="VALIDADO"><b>${cont("VALIDADO")}</b><span>Validados</span></button>
+    <div class="kpi"><b>${ped}</b><span>Pedidos avulsos do auditor</span></div>
+    <button class="kpi${novid ? " late" : ""}" data-act="pid-novos"><b>${novid}</b><span>Fundos com novidade</span></button>
+  </section>
+  <div class="filters">
+    <input data-k="pid.q" data-pidq value="${esc(F.q)}" placeholder="Buscar fundo, CNPJ ou subitem" style="flex:1 1 240px" aria-label="Buscar no Portal ID">
+    <select data-pidf="st" aria-label="Status"><option value="">Todos os status</option>${Object.entries(PID_ST).map(([k, v]) => `<option value="${k}"${F.st === k ? " selected" : ""}>${v.n}</option>`).join("")}</select>
+    <select data-pidf="aud" aria-label="Auditor"><option value="">Todos os auditores</option>${auditores.map((a) => `<option${F.aud === a ? " selected" : ""}>${esc(a)}</option>`).join("")}</select>
+    <select data-pidf="mes" aria-label="Mês findo"><option value="">Todos os meses findos</option>${PID_MESES.map((m) => `<option${F.mes === m ? " selected" : ""}>${m}</option>`).join("")}</select>
+    <label class="row" style="gap:6px;font-size:13px"><input type="checkbox" data-pidc="novos"${F.novos ? " checked" : ""}> Só novidades da última atualização</label>
+    <label class="row" style="gap:6px;font-size:13px"><input type="checkbox" data-pidc="vazios"${F.vazios ? " checked" : ""}> Mostrar fundos sem checklist</label>
+    <label class="row" style="gap:6px;font-size:13px"><input type="checkbox" data-pidc="removidos"${F.removidos ? " checked" : ""}> Mostrar os que saíram do portal</label>
+    ${F.q || F.st || F.aud || F.mes || F.novos ? `<button class="btn ghost sm" data-act="pid-limpar">Limpar filtros</button>` : ""}
+  </div>
+  <section class="card">`;
+  if (!vis.length) h += `<div class="empty">Nenhum fundo com esses filtros.</div>`;
+  for (const c of vis.slice(0, 250)) {
+    const its = itensDe(c), todosIt = pidItens(c), aberto = S.pid.open.has(c.id) || (!!qn && its.length > 0), fp = pidFundoPbc(c);
+    const n = (s) => todosIt.filter((i) => i.status === s).length;
+    h += `<article class="pid-ciclo${c.removidoEm ? " removido" : ""}" data-pid="${esc(c.id)}">
+      <button class="pid-cab" data-act="pid-abrir" aria-expanded="${aberto}">
+        <span class="pid-seta">${aberto ? "▾" : "▸"}</span>
+        <span style="min-width:0"><b class="pid-nome">${esc(c.nome)}</b>
+          <span class="pid-meta">${esc(c.cnpj || "sem CNPJ")} · ${esc(c.tipo || "—")} · mês findo ${esc(c.mesFindo || "—")} · ${esc(c.auditor || "auditor a definir")}${c.analista ? " · analista " + esc(c.analista) : ""}</span></span>
+        <span class="pid-cont">${pidCicloNovo(c) ? `<span class="chip late">Novo</span>` : pidTemNovidade(c) ? `<span class="chip late">Novidade</span>` : ""}${c.removidoEm ? `<span class="chip">Saiu do portal</span>` : ""}
+          ${todosIt.length ? `<span class="chip warn" title="Pendentes">${n("PENDENTE")} pend.</span><span class="chip info" title="Recebidos">${n("RECEBIDO")} rec.</span><span class="chip ok" title="Validados">${n("VALIDADO")} val.</span>` : `<span class="chip">sem checklist</span>`}
+          ${(c.pedidos || []).length ? `<span class="chip" title="Pedidos avulsos do auditor">${c.pedidos.length} pedido(s)</span>` : ""}</span>
+      </button>`;
+    if (aberto) {
+      h += `<div class="pid-corpo">
+        <div class="row" style="gap:6px;font-size:12.5px;color:var(--muted)">${fp ? `<button class="chip info" data-fund="${esc(fp.id)}" title="Abrir o fundo no Denver PBC">No Denver PBC: ${esc(fp.nome)}</button>` : `<span class="chip">Fundo não encontrado no Denver PBC pelo CNPJ</span>`}
+          ${c.gestor ? `<span>Gestor: ${esc(c.gestor)}</span>` : ""}<span>Visto pela primeira vez ${c.cargaInicial ? "na carga inicial" : esc(quando(c.vistoEm))}</span></div>`;
+      if (its.length) {
+        h += `<div class="pid-tab" role="table"><div class="pid-lin pid-th" role="row"><span>Subitem</span><span>Área</span><span>Status</span><span>Pedido em</span><span>Observações e anexos</span></div>`;
+        for (const i of its) {
+          const st = PID_ST[i.status] || { n: i.status, c: "" }, ult = (i.obs || [])[i.obs.length - 1];
+          h += `<div class="pid-lin${pidItemNovo(i) ? " novo" : ""}" role="row"><span>${esc(i.nome)}${i.manual ? ` <span class="chip" title="Item criado pela Denver no portal">manual</span>` : ""}</span>
+            <span>${esc(i.area || "—")}</span>
+            <span><span class="chip ${st.c}">${esc(st.n)}</span>${i.statusAnt ? `<small class="pid-ant" title="Mudou em ${esc(quando(i.statusEm))}">antes: ${esc((PID_ST[i.statusAnt] || { n: i.statusAnt }).n)}</small>` : ""}</span>
+            <span class="mono" style="font-size:12px">${i.pedidoEm ? br(i.pedidoEm) : `<span title="Já existia na carga inicial" style="color:var(--muted)">carga inicial</span>`}</span>
+            <span class="pid-obs">${ult ? `<span title="${esc((i.obs || []).map((o) => `${o.em ? br(o.em) : ""} ${o.autor || ""}: ${o.texto || ""}`).join("\n"))}">${esc(ult.texto || "")} <small>— ${esc(String(ult.autor || "").replace(/\s*\(.*$/, ""))}, ${ult.em ? br(ult.em) : ""}${i.obs.length > 1 ? ` · +${i.obs.length - 1}` : ""}</small></span>` : ""}
+              ${(i.anexos || []).length ? `<small>📎 ${i.anexos.map((a) => esc(a.nome || "anexo")).join(", ")}</small>` : ""}${!ult && !(i.anexos || []).length ? `<span style="color:var(--muted)">—</span>` : ""}</span></div>`;
+        }
+        h += `</div>`;
+      } else if (todosIt.length) h += `<div class="empty">Nenhum subitem com esses filtros.</div>`;
+      else h += `<div class="empty">O checklist deste fundo ainda não foi montado no portal.</div>`;
+      if ((c.pedidos || []).length) h += `<div class="pid-bloco"><h3>Pedidos avulsos do auditor</h3>${c.pedidos.map((p) => `<div class="pid-msg${pidPedidoNovo(p) ? " novo" : ""}"><b>${esc(String(p.autor || "").replace(/\s*\(.*$/, ""))}</b> <small>${esc(quando(p.em))}</small><div>${esc(p.texto || "")}</div></div>`).join("")}</div>`;
+      if ((c.mensagens || []).length) {
+        const ver = S.pid.msgs.has(c.id), ms = ver ? c.mensagens : c.mensagens.slice(0, 2);
+        h += `<div class="pid-bloco"><h3>Conversas recentes</h3>${ms.map((m) => `<div class="pid-msg"><b>${esc(String(m.autor || "").replace(/\s*\(.*$/, ""))}</b> <small>${esc(m.autorTipo === "AUDITOR" ? "auditor" : "interno")} · ${esc(quando(m.em))}</small><div>${esc(m.texto || "")}</div></div>`).join("")}
+          ${c.mensagens.length > 2 ? `<button class="btn ghost sm" data-act="pid-msgs">${ver ? "Mostrar menos" : `Ver as ${c.mensagens.length} mensagens`}</button>` : ""}</div>`;
+      }
+      h += `</div>`;
+    }
+    h += `</article>`;
+  }
+  h += `</section>${vis.length > 250 ? `<p class="sub-t">Mostrando 250 de ${vis.length} fundos. Use os filtros para refinar.</p>` : ""}`;
+  $("view").innerHTML = h;
+}
+
 // --- Controles internos (conteúdo trazido dos quadros de processo do Monday; editável pela equipe)
 const corTexto = (hex) => { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return "var(--ink)"; const n = parseInt(m[1], 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255; return (0.299 * r + 0.587 * g + 0.114 * b) > 160 ? "#1a1a1a" : "#fff"; };
 const stStyle = (hex) => (hex ? `background:${hex};color:${corTexto(hex)};border-color:${hex}` : "");
@@ -1650,6 +1914,16 @@ document.addEventListener("click", async (e) => {
   if (t.dataset.tab) { S.tab = t.dataset.tab; return render(); }
   const act = t.dataset.act, f = S.fundos.get(S.view.id);
   if (act && CFG_ACOES[act]) return CFG_ACOES[act](t, e);
+  if (act && act.startsWith("pid-")) {
+    const P_ = S.pid, cid = t.closest("[data-pid]")?.dataset.pid;
+    if (act === "pid-fav") { e.preventDefault(); toast("Arraste este botão para a barra de favoritos e use-o com o portal da ID aberto."); return; }
+    if (act === "pid-abrir" && cid) { P_.open.has(cid) ? P_.open.delete(cid) : P_.open.add(cid); return render(); }
+    if (act === "pid-msgs" && cid) { P_.msgs.has(cid) ? P_.msgs.delete(cid) : P_.msgs.add(cid); return render(); }
+    if (act === "pid-st") { P_.f.st = P_.f.st === t.dataset.s ? "" : t.dataset.s; return render(); }
+    if (act === "pid-novos") { P_.f.novos = !P_.f.novos; return render(); }
+    if (act === "pid-limpar") { P_.f = { ...P_.f, q: "", st: "", aud: "", mes: "", novos: false }; return render(); }
+    return;
+  }
   if (act === "toggle-group") { const k = t.dataset.k; S.closed.has(k) ? S.closed.delete(k) : S.closed.add(k); return render(); }
   if (act === "clear-filters") { S.filters = {}; return render(); }
   if (act === "new-fund") return renderNewFund();
@@ -1744,6 +2018,9 @@ document.addEventListener("change", (e) => {
   const t = e.target;
   if (t.dataset.filter) { S.filters[t.dataset.filter] = t.value; return render(); }
   if (t.dataset.cxf) { S.cxF[t.dataset.cxf] = t.checked; return render(); }
+  if (t.dataset.pidf) { S.pid.f[t.dataset.pidf] = t.value; return render(); }
+  if (t.dataset.pidc) { S.pid.f[t.dataset.pidc] = t.checked; return render(); }
+  if (t.dataset.pidarq !== undefined) { const fl = t.files && t.files[0]; t.value = ""; return pidArquivo(fl); }
   if (t.dataset.cxsel) { S.cxBusca.sel[t.dataset.cxsel] = t.checked; return render(); }
   if (t.dataset.cxdesde !== undefined) { S.cxBusca.desde = t.value; return; }
   if (t.dataset.cxorigem !== undefined) { S.cxF.origem = t.value; return render(); }
@@ -1822,6 +2099,7 @@ document.addEventListener("submit", (e) => {
 document.addEventListener("input", (e) => {
   if (e.target.id === "q") return render();
   if (e.target.dataset?.cxq !== undefined) { S.cxF.q = e.target.value; return render(); }
+  if (e.target.dataset?.pidq !== undefined) { S.pid.f.q = e.target.value; return render(); }
   if (e.target.dataset?.ctlq !== undefined) { S.ctlQ = e.target.value; return render(); }
   if (e.target.id === "selEntrega") { S.selEntrega = e.target.value; const b = document.querySelector('[data-act="sel-entrega"]'); if (b) b.disabled = !S.selEntrega; return; }
   if (e.target.id === "tSearch" && S.user) {
@@ -2287,6 +2565,7 @@ document.addEventListener("change", async (e) => {
   db.doc("config/monday").onSnapshot((s) => { S.mondayInfo = s.exists ? s.data() : null; renderSync(); if (S.view.name === "config") render(); }, () => {});
   db.doc("config/caixa").onSnapshot((s) => { S.cxSync = s.exists ? s.data() : null; if (S.view.name === "caixa") render(); }, () => {});
   cxAssinar();
+  pidAssinar();
   db.collection("pessoas").onSnapshot((snap) => { S.pessoas = snap.docs.map((d) => ({ id: d.id, ...d.data() })); render(); }, () => {});
 })();
 </script>

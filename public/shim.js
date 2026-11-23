@@ -189,6 +189,7 @@
     eu: () => ({ ...st.eu }),
     config: () => ({ microsoft: !!(st.cfg && st.cfg.microsoft), slack: !!(st.cfg && st.cfg.slack), monday: !!(st.cfg && st.cfg.monday) }),
     sincronizarMonday,
+    portalId: (corpo) => post("/api/portalid", corpo),
     membros: () => st.membros.slice(),
     recarregaMembros,
     salvarMembro: async (o) => { await post("/api/membros", { acao: "salvar", ...o }); return recarregaMembros(); },
