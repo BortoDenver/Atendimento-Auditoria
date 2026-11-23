@@ -285,27 +285,15 @@ h2 { margin: 0; font-size: 15px; font-weight: 700; }
 .pid-sync { display: flex; flex-direction: column; gap: 12px; }
 .pid-passos ol { margin: 0 0 10px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; }
 .pid-fav { cursor: grab; margin: 0 2px; }
-.pid-ciclo { border-bottom: 1px solid var(--line-2); }
-.pid-ciclo:last-child { border-bottom: none; }
-.pid-ciclo.removido { opacity: .6; }
-.pid-cab { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; padding: 11px 14px; background: none; border: none; text-align: left; color: inherit; font: inherit; cursor: pointer; }
-.pid-cab:hover { background: var(--surface-2); }
-.pid-seta { color: var(--muted); }
-.pid-nome { display: block; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pid-meta { display: block; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pid-cont { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
-.pid-corpo { padding: 4px 14px 14px 42px; display: flex; flex-direction: column; gap: 10px; }
-.pid-tab { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.pid-lin { display: grid; grid-template-columns: minmax(0, 2.4fr) minmax(0, 1fr) 120px 92px minmax(0, 2fr); gap: 10px; padding: 8px 12px; border-top: 1px solid var(--line-2); font-size: 13px; align-items: start; }
-.pid-lin.pid-th { border-top: none; background: var(--surface-2); font-size: 11.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
-.pid-lin.novo { background: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
-.pid-ant { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
-.pid-obs small, .pid-msg small { color: var(--muted); }
-.pid-obs { display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
-.pid-bloco h3 { font-size: 13px; margin: 4px 0 6px; }
-.pid-msg { padding: 8px 10px; border-left: 3px solid var(--line); background: var(--surface-2); border-radius: 0 6px 6px 0; font-size: 13px; margin-bottom: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
-.pid-msg.novo { border-left-color: var(--accent); }
-@media (max-width: 900px) { .pid-lin { grid-template-columns: minmax(0, 1fr) 110px; } .pid-lin > :nth-child(2), .pid-lin > :nth-child(4) { display: none; } .pid-lin > :nth-child(5) { grid-column: 1 / -1; } .pid-th > :nth-child(5) { display: none; } .pid-corpo { padding-left: 14px; } .pid-cab { grid-template-columns: 18px minmax(0, 1fr); } .pid-cont { grid-column: 2; justify-content: flex-start; } }
+.pid-passos summary { cursor: pointer; font-size: 13px; color: var(--accent); font-weight: 600; margin-bottom: 8px; }
+.pid-lote { padding: 2px 4px; }
+.pid-tarefa { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line-2); align-items: start; }
+.pid-tarefa:last-child { border-bottom: none; }
+.pid-tarefa.feita { opacity: .75; }
+.pid-tarefa > input[type="checkbox"] { margin-top: 4px; }
+.pid-acts { display: flex; flex-direction: column; gap: 6px; align-items: stretch; min-width: 170px; }
+.pid-acts select { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font-size: 12.5px; }
+@media (max-width: 760px) { .pid-tarefa { grid-template-columns: 22px minmax(0, 1fr); } .pid-acts { grid-column: 2; flex-direction: row; min-width: 0; } }
 .cx-msg.novo { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
 .cx-ico { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 12px; background: var(--cc); }
 .cx-top { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; font-size: 12.5px; color: var(--muted); }
@@ -668,7 +656,7 @@ const S = {
   db: null, user: null, me: null, canWrite: true, loaded: false, timedOut: false, isOwner: false, carga: null, importando: null,
   fundos: new Map(), pessoas: [], profiles: {},
   view: { name: "home" }, filters: {}, sel: new Set(), selEntrega: "", closed: new Set(["done"]), openSub: new Set(), showDone: new Set(), ctl: new Map(), cofre: null, cofreVer: new Set(), ctlTab: lsGet("aa.ctl") || "", ctlQ: "", ctlOpen: new Set(), ctlEdit: null, mcp: undefined, ckModelo: null, cxDocs: new Map(), cxSt: new Map(), cxSync: null, cxUnsub: null, cxCarregado: false, cxJanela: 30, cxFundosCache: new Map(), cxBusca: { rodando: false, log: {}, sel: { outlook: true, teams: true, slack: true }, desde: "ultima" }, cxF: { canal: "", origem: "", fundo: false, tratadas: false, auto: false, q: "" }, cxOpen: new Set(), cxVinc: null, showSent: false, tab: "docs", hist: null, histUnsub: null,
-  pid: { docs: new Map(), info: null, carregado: false, unsub: null, rec: null, open: new Set(), msgs: new Set(), f: { q: "", st: "", aud: "", mes: "", novos: false, vazios: false, removidos: false } },
+  pid: { tarefas: new Map(), info: null, carregado: false, unsub: null, rec: null, aba: "entrada", open: new Set(), sel: new Set(), f: { q: "", tipo: "", resp: "", aud: "" } },
 };
 // o favorito do Portal ID abre a ferramenta em /#portalid
 if (location.hash === "#portalid") { S.view = { name: "portalid" }; try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
@@ -766,7 +754,7 @@ function renderNav() {
   <div class="nav-sec">
     <button class="nl${on(v.name === "home")}" data-go="home"><span class="lab">${ic("home")}Visão geral</span></button>
     <button class="nl${on(v.name === "caixa")}" data-go="caixa"><span class="lab">${ic("inbox")}Caixa de entrada</span><span class="n">${cxLista().filter((m) => !cxStatus(m) && !m.auto).length || ""}</span></button>
-    <button class="nl${on(v.name === "portalid")}" data-go="portalid"><span class="lab">${ic("portal")}Portal ID</span><span class="n">${pidLista().filter((c) => !c.removidoEm && pidTemNovidade(c)).length || ""}</span></button>
+    <button class="nl${on(v.name === "portalid")}" data-go="portalid"><span class="lab">${ic("portal")}Portal ID</span><span class="n">${pidAbertas().length || ""}</span></button>
     <button class="nl${on(v.name === "controles")}" data-go="controles"><span class="lab">${ic("book")}Controles internos</span></button>
     <button class="nl${on(v.name === "mine")}" data-go="mine"><span class="lab">${ic("check")}Minhas pendências</span><span class="n">${mine || ""}</span></button>
     <button class="nl${on(v.name === "team")}" data-go="team"><span class="lab">${ic("users")}Equipe</span><span class="n">${S.pessoas.length || ""}</span></button>
@@ -1323,34 +1311,41 @@ async function cxTriar(m, dados) {
   catch (e) { writeErr(e); }
 }
 
-// --- Portal ID Corretora (juraudit): demandas do auditor lidas no navegador de quem está logado no portal
-// Fluxo: o favorito "Enviar ao Denver PBC" roda no portal, lê tudo só com consultas (portalConsulta) e
-// entrega os dados a esta página por postMessage. Esta página grava em lotes via /api/portalid.
+// --- Portal ID Corretora (juraudit): caixa de entrada das demandas enviadas por terceiros no portal
+// O favorito "Enviar ao Denver PBC" roda no portal, lê tudo só com consultas (portalConsulta) e entrega os dados
+// a esta página por postMessage. O servidor (/api/portalid) compara com a leitura anterior e cria uma tarefa
+// para cada novidade de terceiros: subitem pedido, subitem devolvido, comentário, pedido avulso e mensagem.
 const PORTAL_ID = "https://juraudit.idcorretora.com.br";
 const PID_APP = "pbc-portalid";
-const PID_ST = { PENDENTE: { n: "Pendente", c: "warn" }, RECEBIDO: { n: "Recebido", c: "info" }, VALIDADO: { n: "Validado", c: "ok" } };
-const PID_MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
-const pidLista = () => [...S.pid.docs.values()];
-const pidItens = (c) => (c.itens || []).filter((i) => !i.removidoEm);
-const pidUltima = () => (S.pid.info && S.pid.info.ultima) || "";
-// "novidade" = apareceu ou mudou de status na última atualização (a carga inicial não conta)
-const pidItemNovo = (i) => !!pidUltima() && ((!i.cargaInicial && i.vistoEm >= pidUltima()) || (!!i.statusEm && i.statusEm >= pidUltima()));
-const pidCicloNovo = (c) => !!pidUltima() && !c.cargaInicial && c.vistoEm >= pidUltima();
-const pidPedidoNovo = (p) => !!pidUltima() && !p.cargaInicial && p.vistoEm >= pidUltima();
-const pidTemNovidade = (c) => pidCicloNovo(c) || pidItens(c).some(pidItemNovo) || (c.pedidos || []).some(pidPedidoNovo);
-function pidFundoPbc(c) {
-  const d = String(c.cnpj || "").replace(/\D/g, ""); if (!d) return null;
+const PID_TIPOS = {
+  item: { n: "Subitem pedido", c: "warn" }, devolvido: { n: "Subitem devolvido", c: "late" }, comentario: { n: "Comentário", c: "info" },
+  pedido: { n: "Pedido avulso", c: "warn" }, mensagem: { n: "Mensagem", c: "" } };
+const pidLista = () => [...S.pid.tarefas.values()];
+const pidAbertas = () => pidLista().filter((t) => t.status !== "concluida");
+const pidDataRef = (t) => t.em || t.chegouEm || "";
+function pidFundoPbc(t) {
+  const d = String(t.cnpj || "").replace(/\D/g, ""); if (!d) return null;
   for (const f of S.fundos.values()) if (String(f.cnpj || "").replace(/\D/g, "") === d) return f;
   return null;
 }
 function pidAssinar() {
   if (S.pid.unsub || !S.db) return;
-  S.pid.unsub = S.db.collection("portalid").onSnapshot((snap) => {
-    S.pid.docs = new Map(snap.docs.map((d) => [d.id, d.data()])); S.pid.carregado = true;
+  S.pid.unsub = S.db.collection("pidTarefas").onSnapshot((snap) => {
+    S.pid.tarefas = new Map(snap.docs.map((d) => [d.id, { ...d.data(), id: d.id }])); S.pid.carregado = true;
+    for (const id of [...S.pid.sel]) if (!S.pid.tarefas.has(id)) S.pid.sel.delete(id);
     if (S.view.name === "portalid") render(); else renderNav();
   }, () => { S.pid.carregado = true; });
-  S.db.doc("config/portalid").onSnapshot((s) => { S.pid.info = s.exists ? s.data() : null; if (S.view.name === "portalid") render(); }, () => {});
+  S.db.doc("config/pidSync").onSnapshot((s) => { S.pid.info = s.exists ? s.data() : null; if (S.view.name === "portalid") render(); }, () => {});
 }
+async function pidSalvar(ids, patch, msg) {
+  if (!S.canWrite) { toast("Seu usuário só pode visualizar.", true); return; }
+  let ok = 0;
+  for (const id of ids) { try { await S.db.doc("pidTarefas/" + id).update(patch); ok++; } catch (e) { writeErr(e); break; } }
+  if (ok) toast(msg(ok));
+}
+const pidConcluir = (ids) => pidSalvar(ids, { status: "concluida", concluidaEm: new Date().toISOString(), concluidaPor: S.me?.id || null, auto: null }, (n) => n > 1 ? `${n} tarefas concluídas` : "Tarefa concluída");
+const pidReabrir = (ids) => pidSalvar(ids, { status: "aberta", concluidaEm: null, concluidaPor: null, auto: null }, (n) => n > 1 ? `${n} tarefas reabertas` : "Tarefa reaberta");
+const pidAtribuir = (ids, resp) => pidSalvar(ids, { resp: resp || null }, (n) => resp ? `${n > 1 ? n + " tarefas atribuídas a" : "Responsável:"} ${pname(resp)}` : `${n > 1 ? n + " tarefas ficaram" : "Tarefa ficou"} sem responsável`);
 // Código do favorito. Roda NO PORTAL (não aqui): __PBC__ é trocado pelo endereço desta ferramenta.
 // Só consulta (nunca chama a mutation "portal") e usa visita:false para não marcar novidades como lidas.
 function pidFavorito() {
@@ -1427,23 +1422,22 @@ async function pidReceber(dados, alvo) {
   const ciclos = dados && Array.isArray(dados.ciclos) ? dados.ciclos.filter((c) => c && c.lista && c.lista.id && c.det) : [];
   if (!ciclos.length) { toast("O arquivo não tem dados do Portal ID.", true); pidAvisa(alvo, "erro", "nenhum fundo recebido."); return; }
   if (!window.pbc || !S.canWrite) { toast("Só contribuidores e o dono atualizam o Portal ID.", true); pidAvisa(alvo, "erro", "seu usuário no Denver PBC não pode gravar."); return; }
-  const inicio = new Date().toISOString(), tot = { ciclosNovos: 0, itensNovos: 0, statusMudou: 0, pedidosNovos: 0, obsNovas: 0 };
+  const inicio = new Date().toISOString(), tot = { tarefas: 0, concluidasAuto: 0 };
   S.pid.rec = { rodando: true, feito: 0, total: ciclos.length, erro: "" };
   if (S.view.name !== "portalid") go({ name: "portalid" }); else render();
   try {
     for (let i = 0; i < ciclos.length; i += 15) {
       const r = await window.pbc.portalId({ acao: "lote", inicio, ciclos: ciclos.slice(i, i + 15) });
-      for (const k of Object.keys(tot)) tot[k] += +r[k] || 0;
+      tot.tarefas += +r.tarefas || 0; tot.concluidasAuto += +r.concluidasAuto || 0;
       S.pid.rec.feito = Math.min(ciclos.length, i + 15);
-      pidAvisa(alvo, "progresso", `gravando no Denver PBC: ${S.pid.rec.feito} de ${ciclos.length}`);
+      pidAvisa(alvo, "progresso", `gravando no Denver PBC: ${S.pid.rec.feito} de ${ciclos.length} fundos`);
       render();
     }
-    const fim = await window.pbc.portalId({ acao: "finalizar", inicio, ids: ciclos.map((c) => String(c.lista.id)), resumo: tot, usuarioPortal: dados.usuario || "" });
-    const texto = fim.inicial ? `histórico carregado: ${ciclos.length} fundos.`
-      : `${ciclos.length} fundos lidos · ${tot.ciclosNovos} fundo(s) novo(s), ${tot.itensNovos} subitem(ns) novo(s), ${tot.statusMudou} mudança(s) de status, ${tot.pedidosNovos} pedido(s) avulso(s) novo(s).`;
+    const fim = await window.pbc.portalId({ acao: "finalizar", inicio, ciclos: ciclos.length, resumo: tot, usuarioPortal: dados.usuario || "" });
     await window.pbc.sincronizarAgora().catch(() => {});
-    S.pid.rec = null; S.pid.f.novos = !fim.inicial && !!(tot.ciclosNovos || tot.itensNovos || tot.statusMudou || tot.pedidosNovos);
-    toast("Portal ID: " + texto); pidAvisa(alvo, "fim", texto); render();
+    const texto = `${ciclos.length} fundos lidos · ${tot.tarefas} tarefa(s) nova(s) na caixa de entrada${tot.concluidasAuto ? ` · ${tot.concluidasAuto} concluída(s) porque o portal já recebeu o documento` : ""}.`;
+    S.pid.rec = null; S.pid.aba = "entrada";
+    toast("Portal ID: " + texto); pidAvisa(alvo, "fim", (fim.inicial ? "primeira carga: " : "") + texto); render();
   } catch (e) {
     S.pid.rec = { rodando: false, erro: e.message || "falha ao gravar" }; render();
     pidAvisa(alvo, "erro", "o Denver PBC não conseguiu gravar (" + (e.message || "erro") + ").");
@@ -1459,102 +1453,72 @@ async function pidArquivo(file) {
   try { pidReceber(JSON.parse(await file.text()), null); } catch (e) { toast("Não consegui ler o arquivo: " + e.message, true); }
 }
 function renderPortalId() {
-  crumbs(["Portal ID"]);
+  crumbs(["Portal ID", S.pid.aba === "concluidos" ? "Concluídos" : "Caixa de entrada"]);
   pidAssinar();
-  const F = S.pid.f, info = S.pid.info, rec = S.pid.rec, qn = norm(F.q);
-  const todos = pidLista().filter((c) => F.removidos || !c.removidoEm);
-  const auditores = [...new Set(todos.map((c) => c.auditor).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
-  const itensDe = (c) => pidItens(c).filter((i) => (!F.st || i.status === F.st) && (!F.novos || pidItemNovo(i)) && (!qn || norm(c.nome + " " + c.cnpj + " " + i.nome).includes(qn)));
-  const vis = todos.filter((c) => (!F.aud || c.auditor === F.aud) && (!F.mes || c.mesFindo === F.mes) && (!F.novos || pidTemNovidade(c))
-    && (!qn || norm(c.nome + " " + (c.cnpj || "")).includes(qn) || pidItens(c).some((i) => norm(i.nome).includes(qn)))
-    && (!F.st || pidItens(c).some((i) => i.status === F.st)) && (F.vazios || F.st || pidItens(c).length || (c.pedidos || []).length))
-    .sort((a, b) => (pidTemNovidade(b) - pidTemNovidade(a)) || pidItens(b).filter((i) => i.status === "PENDENTE").length - pidItens(a).filter((i) => i.status === "PENDENTE").length || a.nome.localeCompare(b.nome, "pt-BR"));
-  const it = todos.flatMap(pidItens), cont = (s) => it.filter((i) => i.status === s).length;
-  const ped = todos.reduce((n, c) => n + (c.pedidos || []).length, 0);
-  const novid = todos.filter(pidTemNovidade).length;
+  const F = S.pid.f, info = S.pid.info, rec = S.pid.rec, qn = norm(F.q), conc = S.pid.aba === "concluidos";
+  const todas = pidLista(), abertas = todas.filter((t) => t.status !== "concluida");
+  const base = conc ? todas.filter((t) => t.status === "concluida") : abertas;
+  const auditores = [...new Set(todas.map((t) => t.auditor).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const vis = base.filter((t) => (!F.tipo || t.tipo === F.tipo) && (!F.aud || t.auditor === F.aud)
+    && (!F.resp || (F.resp === "none" ? !t.resp : F.resp === "me" ? t.resp === S.me?.id : t.resp === F.resp))
+    && (!qn || norm([t.fundo, t.cnpj, t.titulo, t.texto, t.autor].join(" ")).includes(qn)))
+    .sort((a, b) => conc ? String(b.concluidaEm || "").localeCompare(String(a.concluidaEm || "")) : pidDataRef(b).localeCompare(pidDataRef(a)));
+  const sel = [...S.pid.sel].filter((id) => vis.some((t) => t.id === id));
+  const respOpts = (v) => `<option value="">Sem responsável</option>${equipeIds().map((id) => `<option value="${esc(id)}"${id === v ? " selected" : ""}>${esc(pname(id))}</option>`).join("")}${v && !equipeIds().includes(v) ? `<option value="${esc(v)}" selected>${esc(pname(v))}</option>` : ""}`;
 
-  let h = `<section class="row between" style="align-items:flex-end"><div><h1>Portal ID</h1><p class="sub-t">Demandas dos auditores no portal da ID Corretora (administrador: ID). Os dados são lidos no seu navegador, com o seu login no portal, e ficam salvos aqui para toda a equipe. Nada é alterado no portal.</p></div></section>
+  let h = `<section class="row between" style="align-items:flex-end"><div><h1>Portal ID</h1><p class="sub-t">O que auditores e a equipe da ID enviam no portal da ID Corretora: subitens pedidos, comentários, pedidos avulsos e mensagens. Defina um responsável e conclua quando estiver resolvido. O controle dos fundos continua nas abas dos administradores.</p></div></section>
   <section class="card pad pid-sync">
-    <div class="row between"><h2>Atualizar</h2><span style="font-size:12.5px;color:var(--muted)">${info ? `Última atualização ${quando(info.ultima)}${info.porNome ? " por " + esc(info.porNome) : ""} · ${info.ciclos} fundos` : "Ainda não foi feita a carga do histórico"}</span></div>
+    <div class="row between"><h2>Buscar novidades do portal</h2><span style="font-size:12.5px;color:var(--muted)">${info ? `Última busca ${quando(info.ultima)}${info.porNome ? " por " + esc(info.porNome) : ""} · ${info.tarefas || 0} tarefa(s) nova(s)` : "Nenhuma busca feita ainda"}</span></div>
     ${rec && rec.rodando ? `<div class="bar" style="height:10px"><span style="width:${(rec.feito / rec.total) * 100}%;background:var(--accent)"></span></div><span class="mono" style="font-size:13px">Gravando ${rec.feito} de ${rec.total} fundos… mantenha esta página aberta.</span>`
-      : rec && rec.erro ? `<div class="notice" style="background:var(--late-bg);color:var(--late)">A última atualização parou: ${esc(rec.erro)}. Clique no favorito de novo; o que já foi gravado não se perde.</div>` : ""}
-    ${info && !info.inicial && !(rec && rec.rodando) ? `<div class="row" style="gap:6px">${[["ciclosNovos", "fundo(s) novo(s)"], ["itensNovos", "subitem(ns) novo(s)"], ["statusMudou", "mudança(s) de status"], ["pedidosNovos", "pedido(s) avulso(s)"], ["removidos", "saíram do portal"]].map(([k, n]) => `<span class="chip${info[k] ? " info" : ""}">${info[k] || 0} ${n}</span>`).join("")}</div>` : ""}
-    <div class="pid-passos">
+      : rec && rec.erro ? `<div class="notice" style="background:var(--late-bg);color:var(--late)">A última busca parou: ${esc(rec.erro)}. Clique no favorito de novo; nada se perde nem se duplica.</div>` : ""}
+    <details class="pid-passos"${info ? "" : " open"}><summary>Como buscar</summary>
       <ol>
         <li>Uma vez só: arraste o botão <a class="btn sm pri pid-fav" href="${esc(pidFavoritoHref())}" data-act="pid-fav" draggable="true" title="Arraste para a barra de favoritos">★ Enviar ao Denver PBC</a> para a barra de favoritos do navegador.</li>
         <li>Clique em <b>Abrir o portal</b>, entre com o seu login e espere a lista de fundos aparecer.</li>
-        <li>No portal, clique no favorito <b>Enviar ao Denver PBC</b>. Ele lê os fundos (cerca de 1 minuto), abre esta aba e grava tudo. ${info ? "Só entram como novidade os fundos e subitens que ainda não existiam aqui, além das mudanças de status." : "A primeira vez traz o histórico completo."}</li>
-      </ol>
-      <div class="row"><a class="btn pri" href="${PORTAL_ID}/#/portal/meus-fundos" target="_blank" rel="noopener">${ic("refresh", 15)}Abrir o portal para atualizar ↗</a>
-        <label class="btn" style="cursor:pointer">${ic("upload", 15)}Importar arquivo .json<input type="file" accept="application/json,.json" data-pidarq hidden></label></div>
-    </div>
-  </section>`;
-  if (!todos.length) {
-    h += `<div class="card"><div class="empty">${S.pid.carregado ? "Nenhum dado do portal ainda. Siga os passos acima para carregar o histórico." : "Carregando…"}</div></div>`;
-    $("view").innerHTML = h; return;
-  }
-  h += `<section class="kpis">
-    <div class="kpi"><b>${todos.length}</b><span>Fundos no portal</span></div>
-    <button class="kpi warn" data-act="pid-st" data-s="PENDENTE"><b>${cont("PENDENTE")}</b><span>Subitens pendentes</span></button>
-    <button class="kpi" data-act="pid-st" data-s="RECEBIDO"><b>${cont("RECEBIDO")}</b><span>Recebidos pelo auditor</span></button>
-    <button class="kpi" data-act="pid-st" data-s="VALIDADO"><b>${cont("VALIDADO")}</b><span>Validados</span></button>
-    <div class="kpi"><b>${ped}</b><span>Pedidos avulsos do auditor</span></div>
-    <button class="kpi${novid ? " late" : ""}" data-act="pid-novos"><b>${novid}</b><span>Fundos com novidade</span></button>
+        <li>No portal, clique no favorito <b>Enviar ao Denver PBC</b>. Ele lê o portal (cerca de 1 minuto), abre esta aba e coloca na caixa de entrada só o que é novo e foi enviado por terceiros.</li>
+      </ol></details>
+    <div class="row"><a class="btn pri" href="${PORTAL_ID}/#/portal/meus-fundos" target="_blank" rel="noopener">${ic("refresh", 15)}Abrir o portal para buscar ↗</a>
+      <label class="btn" style="cursor:pointer">${ic("upload", 15)}Importar arquivo .json<input type="file" accept="application/json,.json" data-pidarq hidden></label></div>
   </section>
+  <nav class="ptabs" aria-label="Situação das tarefas">
+    <button class="ptab${conc ? "" : " on"}" data-act="pid-aba" data-k="entrada">Caixa de entrada<span class="n">${abertas.length}</span></button>
+    <button class="ptab${conc ? " on" : ""}" data-act="pid-aba" data-k="concluidos">Concluídos<span class="n">${todas.length - abertas.length}</span></button>
+  </nav>
   <div class="filters">
-    <input data-k="pid.q" data-pidq value="${esc(F.q)}" placeholder="Buscar fundo, CNPJ ou subitem" style="flex:1 1 240px" aria-label="Buscar no Portal ID">
-    <select data-pidf="st" aria-label="Status"><option value="">Todos os status</option>${Object.entries(PID_ST).map(([k, v]) => `<option value="${k}"${F.st === k ? " selected" : ""}>${v.n}</option>`).join("")}</select>
+    <input data-k="pid.q" data-pidq value="${esc(F.q)}" placeholder="Buscar fundo, CNPJ, subitem ou texto" style="flex:1 1 240px" aria-label="Buscar no Portal ID">
+    <select data-pidf="tipo" aria-label="Tipo"><option value="">Todos os tipos</option>${Object.entries(PID_TIPOS).map(([k, v]) => `<option value="${k}"${F.tipo === k ? " selected" : ""}>${v.n}</option>`).join("")}</select>
+    <select data-pidf="resp" aria-label="Responsável"><option value="">Todos os responsáveis</option><option value="me"${F.resp === "me" ? " selected" : ""}>Minhas</option><option value="none"${F.resp === "none" ? " selected" : ""}>Sem responsável</option>${equipeIds().map((id) => `<option value="${esc(id)}"${F.resp === id ? " selected" : ""}>${esc(pname(id))}</option>`).join("")}</select>
     <select data-pidf="aud" aria-label="Auditor"><option value="">Todos os auditores</option>${auditores.map((a) => `<option${F.aud === a ? " selected" : ""}>${esc(a)}</option>`).join("")}</select>
-    <select data-pidf="mes" aria-label="Mês findo"><option value="">Todos os meses findos</option>${PID_MESES.map((m) => `<option${F.mes === m ? " selected" : ""}>${m}</option>`).join("")}</select>
-    <label class="row" style="gap:6px;font-size:13px"><input type="checkbox" data-pidc="novos"${F.novos ? " checked" : ""}> Só novidades da última atualização</label>
-    <label class="row" style="gap:6px;font-size:13px"><input type="checkbox" data-pidc="vazios"${F.vazios ? " checked" : ""}> Mostrar fundos sem checklist</label>
-    <label class="row" style="gap:6px;font-size:13px"><input type="checkbox" data-pidc="removidos"${F.removidos ? " checked" : ""}> Mostrar os que saíram do portal</label>
-    ${F.q || F.st || F.aud || F.mes || F.novos ? `<button class="btn ghost sm" data-act="pid-limpar">Limpar filtros</button>` : ""}
-  </div>
-  <section class="card">`;
-  if (!vis.length) h += `<div class="empty">Nenhum fundo com esses filtros.</div>`;
-  for (const c of vis.slice(0, 250)) {
-    const its = itensDe(c), todosIt = pidItens(c), aberto = S.pid.open.has(c.id) || (!!qn && its.length > 0), fp = pidFundoPbc(c);
-    const n = (s) => todosIt.filter((i) => i.status === s).length;
-    h += `<article class="pid-ciclo${c.removidoEm ? " removido" : ""}" data-pid="${esc(c.id)}">
-      <button class="pid-cab" data-act="pid-abrir" aria-expanded="${aberto}">
-        <span class="pid-seta">${aberto ? "▾" : "▸"}</span>
-        <span style="min-width:0"><b class="pid-nome">${esc(c.nome)}</b>
-          <span class="pid-meta">${esc(c.cnpj || "sem CNPJ")} · ${esc(c.tipo || "—")} · mês findo ${esc(c.mesFindo || "—")} · ${esc(c.auditor || "auditor a definir")}${c.analista ? " · analista " + esc(c.analista) : ""}</span></span>
-        <span class="pid-cont">${pidCicloNovo(c) ? `<span class="chip late">Novo</span>` : pidTemNovidade(c) ? `<span class="chip late">Novidade</span>` : ""}${c.removidoEm ? `<span class="chip">Saiu do portal</span>` : ""}
-          ${todosIt.length ? `<span class="chip warn" title="Pendentes">${n("PENDENTE")} pend.</span><span class="chip info" title="Recebidos">${n("RECEBIDO")} rec.</span><span class="chip ok" title="Validados">${n("VALIDADO")} val.</span>` : `<span class="chip">sem checklist</span>`}
-          ${(c.pedidos || []).length ? `<span class="chip" title="Pedidos avulsos do auditor">${c.pedidos.length} pedido(s)</span>` : ""}</span>
-      </button>`;
-    if (aberto) {
-      h += `<div class="pid-corpo">
-        <div class="row" style="gap:6px;font-size:12.5px;color:var(--muted)">${fp ? `<button class="chip info" data-fund="${esc(fp.id)}" title="Abrir o fundo no Denver PBC">No Denver PBC: ${esc(fp.nome)}</button>` : `<span class="chip">Fundo não encontrado no Denver PBC pelo CNPJ</span>`}
-          ${c.gestor ? `<span>Gestor: ${esc(c.gestor)}</span>` : ""}<span>Visto pela primeira vez ${c.cargaInicial ? "na carga inicial" : esc(quando(c.vistoEm))}</span></div>`;
-      if (its.length) {
-        h += `<div class="pid-tab" role="table"><div class="pid-lin pid-th" role="row"><span>Subitem</span><span>Área</span><span>Status</span><span>Pedido em</span><span>Observações e anexos</span></div>`;
-        for (const i of its) {
-          const st = PID_ST[i.status] || { n: i.status, c: "" }, ult = (i.obs || [])[i.obs.length - 1];
-          h += `<div class="pid-lin${pidItemNovo(i) ? " novo" : ""}" role="row"><span>${esc(i.nome)}${i.manual ? ` <span class="chip" title="Item criado pela Denver no portal">manual</span>` : ""}</span>
-            <span>${esc(i.area || "—")}</span>
-            <span><span class="chip ${st.c}">${esc(st.n)}</span>${i.statusAnt ? `<small class="pid-ant" title="Mudou em ${esc(quando(i.statusEm))}">antes: ${esc((PID_ST[i.statusAnt] || { n: i.statusAnt }).n)}</small>` : ""}</span>
-            <span class="mono" style="font-size:12px">${i.pedidoEm ? br(i.pedidoEm) : `<span title="Já existia na carga inicial" style="color:var(--muted)">carga inicial</span>`}</span>
-            <span class="pid-obs">${ult ? `<span title="${esc((i.obs || []).map((o) => `${o.em ? br(o.em) : ""} ${o.autor || ""}: ${o.texto || ""}`).join("\n"))}">${esc(ult.texto || "")} <small>— ${esc(String(ult.autor || "").replace(/\s*\(.*$/, ""))}, ${ult.em ? br(ult.em) : ""}${i.obs.length > 1 ? ` · +${i.obs.length - 1}` : ""}</small></span>` : ""}
-              ${(i.anexos || []).length ? `<small>📎 ${i.anexos.map((a) => esc(a.nome || "anexo")).join(", ")}</small>` : ""}${!ult && !(i.anexos || []).length ? `<span style="color:var(--muted)">—</span>` : ""}</span></div>`;
-        }
-        h += `</div>`;
-      } else if (todosIt.length) h += `<div class="empty">Nenhum subitem com esses filtros.</div>`;
-      else h += `<div class="empty">O checklist deste fundo ainda não foi montado no portal.</div>`;
-      if ((c.pedidos || []).length) h += `<div class="pid-bloco"><h3>Pedidos avulsos do auditor</h3>${c.pedidos.map((p) => `<div class="pid-msg${pidPedidoNovo(p) ? " novo" : ""}"><b>${esc(String(p.autor || "").replace(/\s*\(.*$/, ""))}</b> <small>${esc(quando(p.em))}</small><div>${esc(p.texto || "")}</div></div>`).join("")}</div>`;
-      if ((c.mensagens || []).length) {
-        const ver = S.pid.msgs.has(c.id), ms = ver ? c.mensagens : c.mensagens.slice(0, 2);
-        h += `<div class="pid-bloco"><h3>Conversas recentes</h3>${ms.map((m) => `<div class="pid-msg"><b>${esc(String(m.autor || "").replace(/\s*\(.*$/, ""))}</b> <small>${esc(m.autorTipo === "AUDITOR" ? "auditor" : "interno")} · ${esc(quando(m.em))}</small><div>${esc(m.texto || "")}</div></div>`).join("")}
-          ${c.mensagens.length > 2 ? `<button class="btn ghost sm" data-act="pid-msgs">${ver ? "Mostrar menos" : `Ver as ${c.mensagens.length} mensagens`}</button>` : ""}</div>`;
-      }
-      h += `</div>`;
-    }
-    h += `</article>`;
+    ${F.q || F.tipo || F.resp || F.aud ? `<button class="btn ghost sm" data-act="pid-limpar">Limpar filtros</button>` : ""}
+  </div>`;
+  if (S.canWrite && vis.length) h += `<div class="row pid-lote"><label class="row" style="gap:6px;font-size:13px"><input type="checkbox" data-pidtodas${sel.length && sel.length === Math.min(vis.length, 300) ? " checked" : ""}> Selecionar ${sel.length ? `(${sel.length})` : "todas"}</label>
+    ${sel.length ? `<select data-pidlote aria-label="Atribuir as selecionadas"><option value="__">Atribuir a…</option>${respOpts("").replace(' selected', "")}</select>
+      ${conc ? `<button class="btn sm" data-act="pid-reabrir-sel">Reabrir ${sel.length}</button>` : `<button class="btn sm okb" data-act="pid-concluir-sel">✓ Concluir ${sel.length}</button>`}
+      <button class="btn ghost sm" data-act="pid-sel-limpar">Limpar seleção</button>` : ""}</div>`;
+  h += `<section class="card">`;
+  if (!vis.length) h += `<div class="empty">${!S.pid.carregado ? "Carregando…" : base.length ? "Nenhuma tarefa com esses filtros." : conc ? "Nenhuma tarefa concluída ainda." : todas.length ? "Caixa de entrada vazia. 🎉" : "Nenhuma tarefa ainda. Use “Abrir o portal para buscar” para trazer as demandas."}</div>`;
+  for (const t of vis.slice(0, 300)) {
+    const tp = PID_TIPOS[t.tipo] || { n: t.tipo, c: "" }, fp = pidFundoPbc(t), aberto = S.pid.open.has(t.id);
+    h += `<article class="pid-tarefa${conc ? " feita" : ""}" data-pidt="${esc(t.id)}">
+      ${S.canWrite ? `<input type="checkbox" data-pidsel${S.pid.sel.has(t.id) ? " checked" : ""} aria-label="Selecionar tarefa">` : "<span></span>"}
+      <div style="min-width:0">
+        <div class="cx-top"><span class="chip ${tp.c}">${esc(tp.n)}</span><b>${esc(t.fundo)}</b><span>${esc(t.cnpj || "")}</span>${t.auditor ? `<span>${esc(t.auditor)}</span>` : ""}</div>
+        <div class="cx-ass">${esc(t.titulo || "")}</div>
+        ${t.texto ? `<div class="cx-txt${aberto ? " full" : ""}">${t.autor ? `<b>${esc(t.autor)}:</b> ` : ""}${esc(t.texto)}</div>` : ""}
+        <div class="cx-top" style="margin-top:4px"><span>${t.em ? "Enviado " + esc(quando(t.em)) : t.cargaInicial ? "Pendente no portal na primeira carga" : "Apareceu no portal " + esc(quando(t.chegouEm))}</span>
+          ${conc ? `<span>${t.auto ? esc(t.auto) : "Concluída"}${t.concluidaPor ? " por " + esc(pname(t.concluidaPor)) : ""} · ${esc(quando(t.concluidaEm))}</span>` : ""}
+          ${fp ? `<button class="chip info" data-fund="${esc(fp.id)}" title="Abrir o fundo no Denver PBC">Ver fundo no Denver PBC</button>` : ""}
+          ${t.texto && t.texto.length > 160 ? `<button class="btn ghost sm" data-act="pid-ler">${aberto ? "Menos" : "Ler mais"}</button>` : ""}</div>
+      </div>
+      <div class="pid-acts">
+        <select data-pidresp aria-label="Responsável"${S.canWrite ? "" : " disabled"}>${respOpts(t.resp)}</select>
+        ${S.canWrite ? (conc ? `<button class="btn sm" data-act="pid-reabrir">Reabrir</button>` : `<button class="btn sm okb" data-act="pid-concluir">✓ Concluir</button>`) : ""}
+      </div>
+    </article>`;
   }
-  h += `</section>${vis.length > 250 ? `<p class="sub-t">Mostrando 250 de ${vis.length} fundos. Use os filtros para refinar.</p>` : ""}`;
+  h += `</section>${vis.length > 300 ? `<p class="sub-t">Mostrando 300 de ${vis.length}. Use os filtros para refinar.</p>` : ""}`;
   $("view").innerHTML = h;
+  resolveProfiles(todas.flatMap((t) => [t.resp, t.concluidaPor]));
 }
 
 // --- Controles internos (conteúdo trazido dos quadros de processo do Monday; editável pela equipe)
@@ -1915,13 +1879,16 @@ document.addEventListener("click", async (e) => {
   const act = t.dataset.act, f = S.fundos.get(S.view.id);
   if (act && CFG_ACOES[act]) return CFG_ACOES[act](t, e);
   if (act && act.startsWith("pid-")) {
-    const P_ = S.pid, cid = t.closest("[data-pid]")?.dataset.pid;
+    const P_ = S.pid, tid = t.closest("[data-pidt]")?.dataset.pidt;
     if (act === "pid-fav") { e.preventDefault(); toast("Arraste este botão para a barra de favoritos e use-o com o portal da ID aberto."); return; }
-    if (act === "pid-abrir" && cid) { P_.open.has(cid) ? P_.open.delete(cid) : P_.open.add(cid); return render(); }
-    if (act === "pid-msgs" && cid) { P_.msgs.has(cid) ? P_.msgs.delete(cid) : P_.msgs.add(cid); return render(); }
-    if (act === "pid-st") { P_.f.st = P_.f.st === t.dataset.s ? "" : t.dataset.s; return render(); }
-    if (act === "pid-novos") { P_.f.novos = !P_.f.novos; return render(); }
-    if (act === "pid-limpar") { P_.f = { ...P_.f, q: "", st: "", aud: "", mes: "", novos: false }; return render(); }
+    if (act === "pid-aba") { P_.aba = t.dataset.k; P_.sel.clear(); return render(); }
+    if (act === "pid-ler" && tid) { P_.open.has(tid) ? P_.open.delete(tid) : P_.open.add(tid); return render(); }
+    if (act === "pid-concluir" && tid) return pidConcluir([tid]);
+    if (act === "pid-reabrir" && tid) return pidReabrir([tid]);
+    if (act === "pid-concluir-sel") { const ids = [...P_.sel]; P_.sel.clear(); return pidConcluir(ids); }
+    if (act === "pid-reabrir-sel") { const ids = [...P_.sel]; P_.sel.clear(); return pidReabrir(ids); }
+    if (act === "pid-sel-limpar") { P_.sel.clear(); return render(); }
+    if (act === "pid-limpar") { P_.f = { q: "", tipo: "", resp: "", aud: "" }; return render(); }
     return;
   }
   if (act === "toggle-group") { const k = t.dataset.k; S.closed.has(k) ? S.closed.delete(k) : S.closed.add(k); return render(); }
@@ -2019,7 +1986,10 @@ document.addEventListener("change", (e) => {
   if (t.dataset.filter) { S.filters[t.dataset.filter] = t.value; return render(); }
   if (t.dataset.cxf) { S.cxF[t.dataset.cxf] = t.checked; return render(); }
   if (t.dataset.pidf) { S.pid.f[t.dataset.pidf] = t.value; return render(); }
-  if (t.dataset.pidc) { S.pid.f[t.dataset.pidc] = t.checked; return render(); }
+  if (t.dataset.pidresp !== undefined) { const id = t.closest("[data-pidt]")?.dataset.pidt; if (id) pidAtribuir([id], t.value); return; }
+  if (t.dataset.pidsel !== undefined) { const id = t.closest("[data-pidt]")?.dataset.pidt; if (id) t.checked ? S.pid.sel.add(id) : S.pid.sel.delete(id); return render(); }
+  if (t.dataset.pidtodas !== undefined) { const ids = [...document.querySelectorAll("[data-pidt]")].map((el) => el.dataset.pidt); ids.forEach((id) => (t.checked ? S.pid.sel.add(id) : S.pid.sel.delete(id))); return render(); }
+  if (t.dataset.pidlote !== undefined) { if (t.value === "__") return; const ids = [...S.pid.sel]; S.pid.sel.clear(); return pidAtribuir(ids, t.value); }
   if (t.dataset.pidarq !== undefined) { const fl = t.files && t.files[0]; t.value = ""; return pidArquivo(fl); }
   if (t.dataset.cxsel) { S.cxBusca.sel[t.dataset.cxsel] = t.checked; return render(); }
   if (t.dataset.cxdesde !== undefined) { S.cxBusca.desde = t.value; return; }

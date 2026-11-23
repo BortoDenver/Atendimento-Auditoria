@@ -26,7 +26,7 @@ api/membros.js        equipe e papéis (só o dono altera)
 api/db.js             leitura, gravação, importação e feed de mudanças
 api/config.js         diz à página se Microsoft e Slack estão configurados
 api/slack.js          leitura dos canais do Slack
-api/portalid.js       grava as demandas lidas do portal da ID Corretora (aba Portal ID)
+api/portalid.js       transforma as novidades do portal da ID Corretora em tarefas (aba Portal ID)
 vercel.json, package.json, .env.example, .gitignore
 ```
 
@@ -118,21 +118,29 @@ Como funciona:
 
 ## Passo 9 — Portal ID Corretora (aba "Portal ID")
 
-O portal da ID (`juraudit.idcorretora.com.br`) bloqueia acessos de servidores e não tem API liberada. Por isso a leitura é feita **no navegador de quem está logado no portal**, por um favorito, e o resultado é gravado aqui. Não precisa de variável nem de token novo.
+A aba **Portal ID** é uma **caixa de entrada**: mostra só o que terceiros (auditores e a equipe da ID) enviam no portal da ID (`juraudit.idcorretora.com.br`), para a equipe definir um responsável e concluir. Ela não copia o controle dos fundos: isso continua nas abas dos administradores.
 
-1. Na ferramenta, abra **Portal ID** e arraste o botão **★ Enviar ao Denver PBC** para a barra de favoritos do navegador (uma vez por computador). O favorito já leva o endereço desta ferramenta.
-2. Clique em **Abrir o portal para atualizar**, entre no portal com o seu login e espere a lista de fundos aparecer.
-3. Clique no favorito. Ele lê os fundos (cerca de 1 minuto para ~240 fundos), abre a aba Portal ID do Denver PBC e grava tudo. Contribuidores e o dono podem usar.
-4. Se o navegador bloquear a janela, o favorito salva um arquivo `portal-id-AAAA-MM-DD.json`. Use **Importar arquivo .json** na aba Portal ID.
+O portal bloqueia acessos de servidores e não tem API liberada, então a leitura é feita **no navegador de quem está logado no portal**, por um favorito. Não precisa de variável nem de token novo.
+
+1. Na aba Portal ID, abra **Como buscar** e arraste o botão **★ Enviar ao Denver PBC** para a barra de favoritos (uma vez por computador).
+2. Clique em **Abrir o portal para buscar**, entre no portal com o seu login e espere a lista de fundos aparecer.
+3. Clique no favorito. Ele lê o portal (cerca de 1 minuto), abre a aba Portal ID e coloca as novidades na caixa de entrada. Contribuidores e o dono podem usar.
+4. Se o navegador bloquear a janela, o favorito salva um arquivo `portal-id-AAAA-MM-DD.json`. Use **Importar arquivo .json** na aba.
+
+O que vira tarefa (só o que foi enviado por terceiros; nada do que a Denver escreve):
+- **Subitem pedido**: subitem novo pendente no checklist do portal. Sai sozinho da caixa de entrada quando o portal marca o documento como recebido ou validado.
+- **Subitem devolvido**: subitem que voltou para pendente.
+- **Comentário**: observação nova num subitem.
+- **Pedido avulso**: pedido de documento feito pelo auditor na conversa do fundo.
+- **Mensagem**: mensagem nova na conversa do fundo.
 
 Como funciona:
+- A tela tem **Caixa de entrada** e **Concluídos**. Cada tarefa tem responsável e pode ser concluída ou reaberta, uma a uma ou em lote.
+- **Primeira busca**: entram todos os subitens pendentes e os comentários, pedidos e mensagens dos últimos 15 dias (`JANELA_INICIAL_DIAS` em `api/portalid.js`). Depois, só o que for novo.
+- Buscar de novo nunca duplica tarefas nem apaga responsável ou conclusão.
 - **Só leitura no portal.** Usa apenas a consulta `portalConsulta` (`meusCiclos` e `ciclo` com `visita:false`, para não marcar novidades como lidas lá). A sessão do portal nunca sai do navegador.
-- **A primeira vez traz o histórico.** As seguintes marcam como novidade só os fundos e subitens que ainda não existiam aqui, as mudanças de status (com o status anterior) e os pedidos avulsos novos do auditor.
-- **Nada é apagado.** Fundos e subitens que saem do portal ficam marcados como "saiu do portal".
-- Os dados ficam na coleção `portalid` (um documento por ciclo do portal) e o resumo da última atualização em `config/portalid`. A conversão dos campos fica em `api/portalid.js`.
-- O administrador desses fundos é sempre a **ID**. "Pedido em" é o dia em que o subitem apareceu pela primeira vez numa atualização: para o que veio na carga inicial, o portal não informa a data.
+- Os dados ficam nas coleções `pidTarefas` (as tarefas) e `pidBase` (a última leitura de cada fundo, usada só para comparar), e o resumo da última busca em `config/pidSync`.
 - Se a ID mudar o portal e o favorito parar de funcionar, ajuste `pidFavorito` em `public/index.html` e arraste o botão de novo para a barra de favoritos.
-
 ---
 
 ## Configurações e barra lateral
