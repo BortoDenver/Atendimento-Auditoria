@@ -142,7 +142,7 @@ Como funciona:
   - **Prazo interno**: data, com aviso de "vence hoje" ou "X d atrasado".
   - **Comentários internos**: por exemplo, "Não é possível fazer no momento pois falta o Draft". Ficam com autor e horário. Cada pessoa pode apagar os próprios. Duas pessoas podem comentar ao mesmo tempo sem perder nada.
   - Urgência e prazo também podem ser definidos em lote, e a lista pode ser ordenada por "Prazo e urgência primeiro".
-- **Minhas pendências** mostra as tarefas do Portal ID de cada responsável, ordenadas por prazo interno e urgência, com o último comentário. Dá para concluir ali mesmo, ou clicar para abrir a tarefa destacada no Portal ID. O número ao lado de "Minhas pendências", no menu, inclui essas tarefas.
+- **Minhas pendências** mostra as tarefas do Portal ID de cada responsável, ordenadas por prazo interno e urgência, com o último comentário. Dá para concluir ali mesmo, ou clicar para abrir a tarefa destacada no Portal ID. O botão **Comentar** abre, abaixo da linha, o texto da tarefa e os comentários internos para ler e escrever, sem sair de Minhas pendências. São os mesmos comentários da aba Portal ID. O número ao lado de "Minhas pendências", no menu, inclui essas tarefas.
 - **Primeira busca**: entram todos os subitens pendentes e os comentários, pedidos e mensagens dos últimos 15 dias (`JANELA_INICIAL_DIAS` em `api/portalid.js`). Depois, só o que for novo.
 - Buscar de novo nunca duplica tarefas nem apaga responsável ou conclusão.
 - **Só leitura no portal.** Usa apenas a consulta `portalConsulta` (`meusCiclos` e `ciclo` com `visita:false`, para não marcar novidades como lidas lá). A sessão do portal nunca sai do navegador.

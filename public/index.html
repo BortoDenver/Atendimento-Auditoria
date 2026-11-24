@@ -312,6 +312,9 @@ h2 { margin: 0; font-size: 15px; font-weight: 700; }
 .pid-com-m .btn { padding: 0 4px; font-size: 11.5px; color: var(--muted); }
 .pid-com-t { overflow-wrap: anywhere; white-space: pre-wrap; }
 .pid-com-add { display: flex; gap: 6px; }
+.pid-mine-acts { display: flex; flex-direction: column; gap: 5px; align-items: stretch; }
+.pid-mine-coms { min-width: var(--minw, 980px); padding: 4px 14px 14px 14px; background: var(--surface-2); border-bottom: 1px solid var(--line); }
+.pid-mine-coms .pid-coms { background: var(--surface); margin-top: 0; }
 .pid-com-add input { flex: 1; min-width: 0; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font-size: 13px; }
 .pid-com-add input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); outline: none; }
 @media (max-width: 760px) { .pid-tarefa { grid-template-columns: 22px minmax(0, 1fr); } .pid-acts { grid-column: 2; flex-direction: row; flex-wrap: wrap; width: auto; } .pid-campo { flex: 1 1 140px; } }
@@ -677,7 +680,7 @@ const S = {
   db: null, user: null, me: null, canWrite: true, loaded: false, timedOut: false, isOwner: false, carga: null, importando: null,
   fundos: new Map(), pessoas: [], profiles: {},
   view: { name: "home" }, filters: {}, sel: new Set(), selEntrega: "", closed: new Set(["done"]), openSub: new Set(), showDone: new Set(), ctl: new Map(), cofre: null, cofreVer: new Set(), ctlTab: lsGet("aa.ctl") || "", ctlQ: "", ctlOpen: new Set(), ctlEdit: null, mcp: undefined, ckModelo: null, cxDocs: new Map(), cxSt: new Map(), cxSync: null, cxUnsub: null, cxCarregado: false, cxJanela: 30, cxFundosCache: new Map(), cxBusca: { rodando: false, log: {}, sel: { outlook: true, teams: true, slack: true }, desde: "ultima" }, cxF: { canal: "", origem: "", fundo: false, tratadas: false, auto: false, q: "" }, cxOpen: new Set(), cxVinc: null, showSent: false, tab: "docs", hist: null, histUnsub: null,
-  pid: { tarefas: new Map(), fundos: new Map(), info: null, carregado: false, unsub: null, rec: null, aba: "entrada", open: new Set(), sel: new Set(), f: { q: "", tipo: "", resp: "", aud: "", mes: "", mod: "", ana: "", urg: "", ord: "" }, rasc: {}, foco: null },
+  pid: { tarefas: new Map(), fundos: new Map(), info: null, carregado: false, unsub: null, rec: null, aba: "entrada", open: new Set(), sel: new Set(), f: { q: "", tipo: "", resp: "", aud: "", mes: "", mod: "", ana: "", urg: "", ord: "" }, rasc: {}, foco: null, mineOpen: new Set() },
 };
 // o favorito do Portal ID abre a ferramenta em /#portalid
 if (location.hash === "#portalid") { S.view = { name: "portalid" }; S.pid.aguardando = true; try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
@@ -1364,6 +1367,15 @@ function pidPrazo(t) {
 // prioridade: prazo mais próximo (atrasados primeiro), depois urgência, depois o mais recente
 const pidPrioridade = (a, b) => String(a.prazo || "9999-99-99").localeCompare(String(b.prazo || "9999-99-99"))
   || ((PID_URG[a.urg]?.o ?? 3) - (PID_URG[b.urg]?.o ?? 3)) || pidDataRef(b).localeCompare(pidDataRef(a));
+// bloco de comentários internos de uma tarefa (usado no Portal ID e em Minhas pendências)
+function pidComsHTML(t) {
+  const coms = pidComs(t), rasc = S.pid.rasc[t.id] || "";
+  return `<div class="pid-coms" aria-label="Comentários internos">
+    <div class="pid-coms-h">${ic("book", 13)}Comentários internos${coms.length ? ` <span class="mono">${coms.length}</span>` : ""}<span class="hint">só a equipe Denver vê</span></div>
+    ${coms.map((c) => `<div class="pid-com">${avatar(c.u, 22)}<div><div class="pid-com-m"><b>${esc(pname(c.u))}</b><span>${esc(quando(c.q))}</span>${S.canWrite && c.u === S.me?.id ? `<button class="btn ghost sm" data-act="pid-com-del" data-cid="${esc(c.id)}" title="Apagar comentário">Apagar</button>` : ""}</div><div class="pid-com-t">${linkify(c.t)}</div></div></div>`).join("")}
+    ${S.canWrite ? `<div class="pid-com-add"><input data-pidcom data-k="pidcom.${esc(t.id)}" value="${esc(rasc)}" maxlength="2000" placeholder="Escreva um comentário (ex.: Não é possível fazer no momento, falta o Draft)" aria-label="Novo comentário interno"><button class="btn sm" data-act="pid-com-add"${rasc.trim() ? "" : " disabled"}>Comentar</button></div>` : coms.length ? "" : `<span class="hint">Nenhum comentário.</span>`}
+  </div>`;
+}
 async function pidComentar(id) {
   const inp = document.querySelector(`[data-pidt="${CSS.escape(id)}"] [data-pidcom]`), txt = (inp ? inp.value : S.pid.rasc[id] || "").trim();
   if (!txt) { inp && inp.focus(); return; }
@@ -1601,7 +1613,7 @@ function renderPortalId() {
   if (!vis.length) h += `<div class="empty">${!S.pid.carregado ? "Carregando…" : base.length ? "Nenhuma tarefa com esses filtros." : conc ? "Nenhuma tarefa concluída ainda." : todas.length ? "Caixa de entrada vazia. 🎉" : "Nenhuma tarefa ainda. Use “Abrir o portal para buscar” para trazer as demandas."}</div>`;
   for (const t of vis.slice(0, 300)) {
     const tp = PID_TIPOS[t.tipo] || { n: t.tipo, c: "" }, fp = pidFundoPbc(t), aberto = S.pid.open.has(t.id);
-    const urg = PID_URG[t.urg], pz = pidPrazo(t), coms = pidComs(t), rasc = S.pid.rasc[t.id] || "";
+    const urg = PID_URG[t.urg], pz = pidPrazo(t);
     h += `<article class="pid-tarefa${conc ? " feita" : ""}${urg ? " urg-" + t.urg : ""}" data-pidt="${esc(t.id)}">
       ${S.canWrite ? `<input type="checkbox" data-pidsel${S.pid.sel.has(t.id) ? " checked" : ""} aria-label="Selecionar tarefa">` : "<span></span>"}
       <div style="min-width:0">
@@ -1613,11 +1625,7 @@ function renderPortalId() {
           ${conc ? `<span>${t.auto ? esc(t.auto) : "Concluída"}${t.concluidaPor ? " por " + esc(pname(t.concluidaPor)) : ""} · ${esc(quando(t.concluidaEm))}</span>` : ""}
           ${fp ? `<button class="chip info" data-fund="${esc(fp.id)}" title="Abrir o fundo no Denver PBC">Ver fundo no Denver PBC</button>` : ""}
           ${t.texto && t.texto.length > 160 ? `<button class="btn ghost sm" data-act="pid-ler">${aberto ? "Menos" : "Ler mais"}</button>` : ""}</div>
-        <div class="pid-coms" aria-label="Comentários internos">
-          <div class="pid-coms-h">${ic("book", 13)}Comentários internos${coms.length ? ` <span class="mono">${coms.length}</span>` : ""}<span class="hint">só a equipe Denver vê</span></div>
-          ${coms.map((c) => `<div class="pid-com">${avatar(c.u, 22)}<div><div class="pid-com-m"><b>${esc(pname(c.u))}</b><span>${esc(quando(c.q))}</span>${S.canWrite && c.u === S.me?.id ? `<button class="btn ghost sm" data-act="pid-com-del" data-cid="${esc(c.id)}" title="Apagar comentário">Apagar</button>` : ""}</div><div class="pid-com-t">${linkify(c.t)}</div></div></div>`).join("")}
-          ${S.canWrite ? `<div class="pid-com-add"><input data-pidcom data-k="pidcom.${esc(t.id)}" value="${esc(rasc)}" maxlength="2000" placeholder="Escreva um comentário (ex.: Não é possível fazer no momento, falta o Draft)" aria-label="Novo comentário interno"><button class="btn sm" data-act="pid-com-add"${rasc.trim() ? "" : " disabled"}>Comentar</button></div>` : coms.length ? "" : `<span class="hint">Nenhum comentário.</span>`}
-        </div>
+        ${pidComsHTML(t)}
       </div>
       <div class="pid-acts">
         <label class="pid-campo"><span>Responsável</span><select data-pidresp aria-label="Responsável"${S.canWrite ? "" : " disabled"}>${respOpts(t.resp)}</select></label>
@@ -1853,7 +1861,7 @@ function renderMine() {
     <div class="card tbl" style="border-top:1px solid var(--line)"><div class="grid-row grid-head" style="grid-template-columns:minmax(240px,2fr) minmax(200px,1.4fr) 150px 110px 150px;--minw:900px"><span>Subitem</span><span>Fundo</span><span>Status</span><span>Pedido</span><span>Entrega do fundo</span></div>
     ${rows.length ? rows.slice(0, 300).map((d) => { const p = prazoInfo(d.f), a = -diasAte(d.pedidoEm), st = DOC_NOME[d.s];
       return `<div class="grid-row item" style="grid-template-columns:minmax(240px,2fr) minmax(200px,1.4fr) 150px 110px 150px;--minw:900px" data-fund="${esc(d.f.id)}" tabindex="0"><span class="doc-name">${esc(d.nome)}</span><span><b style="font-weight:500">${esc(d.f.nome)}</b><div class="doc-meta">${esc(ABA_NOME(d.f.aba))} · ${esc(PAG_NOME[d.f.pagina])}</div></span><span><span class="chip ${st.c}">${st.n}</span></span><span><span class="chip ${a > 30 ? "late" : a > 7 ? "warn" : ""}">${a > 0 ? `há ${a} d` : "hoje"}</span></span><span>${p.txt ? `<span class="chip ${p.c}">${p.txt}</span>` : "—"}</span></div>`; }).join("") : `<div class="empty">Nada nesta faixa.</div>`}</div></section>`;
-  const gc = "minmax(240px,2fr) minmax(190px,1.3fr) 96px 150px minmax(200px,1.5fr) 104px";
+  const gc = "minmax(240px,2fr) minmax(190px,1.3fr) 96px 150px minmax(200px,1.5fr) 128px";
   const secPid = `<section style="display:flex;flex-direction:column;gap:8px"><h2 class="row"><span class="g-dot" style="background:#5b5fc7"></span>Portal ID <span class="mono" style="font-weight:400;font-size:12px;color:var(--muted)">${pidMine.length}</span><span class="hint" style="font-weight:400">ordenadas por prazo interno e urgência</span></h2>
     <div class="card tbl" style="border-top:1px solid var(--line)"><div class="grid-row grid-head" style="grid-template-columns:${gc};--minw:1060px"><span>Tarefa</span><span>Fundo</span><span>Urgência</span><span>Prazo interno</span><span>Último comentário</span><span></span></div>
     ${pidMine.length ? pidMine.slice(0, 300).map((t) => { const tp = PID_TIPOS[t.tipo] || { n: t.tipo, c: "" }, u = PID_URG[t.urg], pz = pidPrazo(t), cs = pidComs(t), ult = cs[cs.length - 1];
@@ -1862,8 +1870,9 @@ function renderMine() {
         <span><b style="font-weight:500">${esc(t.fundo || "")}</b><div class="doc-meta">${esc([t.cnpj, t.mesFindo && "mês findo " + t.mesFindo].filter(Boolean).join(" · "))}</div></span>
         <span>${u ? `<span class="chip ${u.c}">${u.n}</span>` : "—"}</span>
         <span>${pz ? `<span class="chip ${pz.c}">${esc(pz.txt)}</span><div class="doc-meta">${esc(br(t.prazo))}</div>` : "—"}</span>
-        <span style="font-size:12.5px">${ult ? `<b style="font-weight:600">${esc(pname(ult.u))}:</b> ${esc(ult.t.length > 110 ? ult.t.slice(0, 110) + "…" : ult.t)}${cs.length > 1 ? `<div class="doc-meta">+${cs.length - 1} comentário(s)</div>` : ""}` : `<span style="color:var(--muted)">—</span>`}</span>
-        <span>${S.canWrite ? `<button class="btn sm okb" data-act="pid-concluir">✓ Concluir</button>` : ""}</span></div>`; }).join("") : `<div class="empty">${S.pid.carregado ? "Nenhuma tarefa do Portal ID com esta pessoa." : "Carregando…"}</div>`}</div></section>`;
+        <span style="font-size:12.5px">${ult ? `<b style="font-weight:600">${esc(pname(ult.u))}:</b> ${esc(ult.t.length > 110 ? ult.t.slice(0, 110) + "…" : ult.t)}${cs.length > 1 ? `<div class="doc-meta">+${cs.length - 1} comentário(s)</div>` : ""}` : `<span style="color:var(--muted)">Sem comentários</span>`}</span>
+        <span class="pid-mine-acts"><button class="btn sm${S.pid.mineOpen.has(t.id) ? " pri" : ""}" data-act="pid-com-toggle" aria-expanded="${S.pid.mineOpen.has(t.id)}">${ic("book", 13)}${S.pid.mineOpen.has(t.id) ? "Fechar" : "Comentar"}${cs.length ? ` (${cs.length})` : ""}</button>${S.canWrite ? `<button class="btn sm okb" data-act="pid-concluir">✓ Concluir</button>` : ""}</span></div>
+        ${S.pid.mineOpen.has(t.id) ? `<div class="pid-mine-coms" data-pidt="${esc(t.id)}" style="--minw:1060px">${t.texto ? `<div class="cx-txt full" style="margin-bottom:8px">${t.autor ? `<b>${esc(t.autor)}:</b> ` : ""}${esc(t.texto)}</div>` : ""}${pidComsHTML(t)}</div>` : ""}`; }).join("") : `<div class="empty">${S.pid.carregado ? "Nenhuma tarefa do Portal ID com esta pessoa." : "Carregando…"}</div>`}</div></section>`;
   $("view").innerHTML = `<section><h1>Minhas pendências</h1><p class="sub-t">O que está com cada pessoa: tarefas do Portal ID e pedidos do auditor, em todos os administradores e páginas. Itens concluídos ficam fora.</p></section>
     <div class="row" role="tablist" aria-label="Responsável">${ids.map((id) => `<button class="btn${id === who ? " pri" : ""}" style="display:inline-flex;align-items:center;gap:8px;border-radius:999px" data-go="mine" data-who="${esc(id)}">${avatar(id)}${esc(pname(id))}${id === S.me?.id ? " (você)" : ""}<span class="mono" style="font-size:12px">${all.filter((d) => d.resp === id).length + pidAb.filter((t) => t.resp === id).length}</span></button>`).join("")}
       <button class="btn${who === "none" ? " pri" : ""}" style="border-radius:999px" data-go="mine" data-who="none">Sem responsável <span class="mono" style="font-size:12px">${all.filter((d) => !d.resp).length + pidAb.filter((t) => !t.resp).length}</span></button></div>
@@ -1872,6 +1881,7 @@ function renderMine() {
     <h2 style="margin-top:6px">Pedidos do auditor (subitens dos fundos)</h2>
     ${sec("Abertos há mais de 7 dias", "var(--late)", late)}${sec("Recentes", "var(--info)", rec)}`;
   resolveProfiles(ids.concat(pidMine.flatMap((t) => pidComs(t).map((c) => c.u))));
+  if (S.pid.focoCom) { const el = document.querySelector(`.pid-mine-coms[data-pidt="${CSS.escape(S.pid.focoCom)}"] [data-pidcom]`); S.pid.focoCom = null; if (el) el.focus(); }
 }
 
 // --- Equipe
@@ -2021,6 +2031,7 @@ document.addEventListener("click", async (e) => {
     if (act === "pid-sel-limpar") { P_.sel.clear(); return render(); }
     if (act === "pid-limpar") { P_.f = { q: "", tipo: "", resp: "", aud: "", mes: "", mod: "", ana: "", urg: "", ord: P_.f.ord }; return render(); }
     if (act === "pid-com-add" && tid) return pidComentar(tid);
+    if (act === "pid-com-toggle" && tid) { if (P_.mineOpen.has(tid)) P_.mineOpen.delete(tid); else { P_.mineOpen.add(tid); P_.focoCom = tid; } return render(); }
     if (act === "pid-com-del" && tid) { if (!confirm("Apagar este comentário?")) return; return pidSalvar([tid], { coms: { [t.dataset.cid]: null } }, () => "Comentário apagado"); }
     if (act === "pid-abrir" && tid) {
       const tk = S.pid.tarefas.get(tid); P_.foco = tid; P_.aba = tk && tk.status === "concluida" ? "concluidos" : "entrada";
