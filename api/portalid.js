@@ -32,6 +32,17 @@ const cobertoPelaConciliacao = (t) => {
   return /balancete/.test(n) || /\brazao\b/.test(n);
 };
 const MOTIVO_CONCILIACAO = "Feito: Conciliações mensais com anexo no portal";
+// Regra da equipe: quando a pendência não se aplica, alguém comenta no item "Não aplicável" no portal
+// (ex.: "Não Aplicável", "Não aplicavel", "Não se aplica", "N/A"). O subitem conta como resolvido.
+// Vale o comentário que COMEÇA assim; "Não aplicável?" (com interrogação) não conta, porque é pergunta.
+const ehNaoAplicavel = (t) => {
+  const n = semAcento(t).replace(/^[\s"'“”*\-–—:.]+/, "").trim();
+  if (/^[^\n]{0,40}\?/.test(n)) return false;
+  return /^(n\s*\/\s*a|n\.a\.|nao\s+(e\s+)?(se\s+)?aplic(a|avel|aveis)?)(?![a-z0-9])/.test(n);
+};
+// "jose.lipinski@denvercontabil.com.br" → "Jose Lipinski"
+const nomeLegivel = (a) => { const n = nomeAutor(a) || ""; const m = /^([^@\s]+)@/.exec(n); return m ? m[1].split(/[._-]+/).filter(Boolean).map((x) => x.charAt(0).toUpperCase() + x.slice(1)).join(" ") : n; };
+const motivoNA = (o) => `Não aplicável: comentado no portal${nomeLegivel(o.autor) ? " por " + nomeLegivel(o.autor) : ""}${iso(o.em) ? " em " + iso(o.em).slice(0, 10).split("-").reverse().join("/") : ""}`;
 
 // Compara um ciclo com a fotografia anterior e devolve {base, tarefas, fechar}.
 // tarefas: novas tarefas (só são gravadas se ainda não existirem); fechar: ids de tarefas de subitem que o portal já resolveu.
@@ -50,6 +61,14 @@ function analisaCiclo(bruto, ant, agora, inicial) {
   // já estão entregues junto. Esses subitens não ficam na caixa de entrada (entram direto em Concluídos).
   const conciliacaoComAnexo = (D.itens || []).some((it) => it && !it.secao && ehConciliacaoMensal(it.texto) && (it.anexos || []).length > 0);
 
+  // subitens com comentário "Não aplicável" (de qualquer pessoa: equipe Denver, ID ou auditor); vale o mais recente
+  const naItem = {};
+  for (const o of D.observacoes || []) {
+    if (!o || !o.itemId || !ehNaoAplicavel(o.texto)) continue;
+    const k = String(o.itemId);
+    if (!naItem[k] || String(iso(o.em) || "") > String(iso(naItem[k].em) || "")) naItem[k] = o;
+  }
+
   const nomeItem = {}, itensBase = {};
   for (const it of D.itens || []) {
     if (!it || !it.id || it.secao) continue;
@@ -57,13 +76,14 @@ function analisaCiclo(bruto, ant, agora, inicial) {
     const nome = txt(it.texto, 500) || "(sem nome)";
     nomeItem[iid] = nome; itensBase[iid] = st;
     if (st === "PENDENTE") {
-      const coberto = conciliacaoComAnexo && cobertoPelaConciliacao(nome);
+      const na = naItem[iid], motivo = na ? motivoNA(na) : MOTIVO_CONCILIACAO;
+      const coberto = !!na || (conciliacaoComAnexo && cobertoPelaConciliacao(nome));
       // subitem pedido (novo) ou devolvido para pendente pelo auditor
       if (!antes && !it.criadoPeloContador) nova("item", iid, { titulo: nome, texto: "Documento solicitado no checklist do portal.", itemId: iid, em: null,
-        ...(coberto ? { status: "concluida", concluidaEm: agora, concluidaPor: null, auto: MOTIVO_CONCILIACAO } : {}) });
+        ...(coberto ? { status: "concluida", concluidaEm: agora, concluidaPor: null, auto: motivo } : {}) });
       else if (antes && antes !== "PENDENTE" && !coberto) nova("devolvido", `${iid}-${agora}`, { titulo: nome, texto: `Voltou para pendente (antes: ${antes === "RECEBIDO" ? "recebido" : "validado"}).`, itemId: iid, em: null });
       // a conciliação pode ter recebido o anexo depois: conclui a tarefa do subitem que ainda estiver aberta
-      if (coberto) fechar.push({ id: chave(`item-${cicloId}-${iid}`), motivo: MOTIVO_CONCILIACAO });
+      if (coberto) fechar.push({ id: chave(`item-${cicloId}-${iid}`), motivo });
     } else if (antes === "PENDENTE" || !antes) {
       // o portal registrou o documento: a tarefa do subitem (se houver) pode ser concluída
       fechar.push({ id: chave(`item-${cicloId}-${iid}`), motivo: st === "VALIDADO" ? "Validado no portal" : "Recebido no portal" });
@@ -75,7 +95,8 @@ function analisaCiclo(bruto, ant, agora, inicial) {
     if (!o || !o.id) continue;
     const oid = String(o.id); obsIds.push(oid);
     if (antObs.has(oid) || o.minha || daDenver(o.autor) || !recente(iso(o.em))) continue;
-    nova("comentario", oid, { titulo: nomeItem[o.itemId] || "Subitem do checklist", texto: txt(o.texto, 4000), autor: nomeAutor(o.autor), itemId: o.itemId || null, em: iso(o.em) });
+    nova("comentario", oid, { titulo: nomeItem[o.itemId] || "Subitem do checklist", texto: txt(o.texto, 4000), autor: nomeAutor(o.autor), itemId: o.itemId || null, em: iso(o.em),
+      ...(ehNaoAplicavel(o.texto) ? { status: "concluida", concluidaEm: agora, concluidaPor: null, auto: motivoNA(o) } : {}) });
   }
 
   const convIds = [];
@@ -124,7 +145,8 @@ module.exports = rota(async (req, res) => {
       const atuais = await pipeline(fechar.map((f) => ["HGET", TAREFAS, f.id])), cmds = [];
       fechar.forEach((f, i) => {
         const t = atuais[i] ? JSON.parse(atuais[i]) : null;
-        if (!t || t.status !== "aberta") return;
+        // reaberta à mão pela equipe: a decisão da equipe prevalece sobre a conclusão automática
+        if (!t || t.status !== "aberta" || t.reabertaManual) return;
         Object.assign(t, { status: "concluida", concluidaEm: agora, concluidaPor: null, auto: f.motivo });
         cmds.push(["HSET", TAREFAS, f.id, JSON.stringify(t)]); paths.push("pidTarefas/" + f.id);
       });
@@ -156,3 +178,4 @@ module.exports = rota(async (req, res) => {
 });
 // exportado para testes
 module.exports.analisaCiclo = analisaCiclo;
+module.exports.ehNaoAplicavel = ehNaoAplicavel;

@@ -1406,7 +1406,7 @@ async function pidSalvar(ids, patch, msg) {
   if (ok) toast(msg(ok));
 }
 const pidConcluir = (ids) => pidSalvar(ids, { status: "concluida", concluidaEm: new Date().toISOString(), concluidaPor: S.me?.id || null, auto: null }, (n) => n > 1 ? `${n} tarefas concluídas` : "Tarefa concluída");
-const pidReabrir = (ids) => pidSalvar(ids, { status: "aberta", concluidaEm: null, concluidaPor: null, auto: null }, (n) => n > 1 ? `${n} tarefas reabertas` : "Tarefa reaberta");
+const pidReabrir = (ids) => pidSalvar(ids, { status: "aberta", concluidaEm: null, concluidaPor: null, auto: null, reabertaManual: true }, (n) => n > 1 ? `${n} tarefas reabertas` : "Tarefa reaberta");
 const pidAtribuir = (ids, resp) => pidSalvar(ids, { resp: resp || null }, (n) => resp ? `${n > 1 ? n + " tarefas atribuídas a" : "Responsável:"} ${pname(resp)}` : `${n > 1 ? n + " tarefas ficaram" : "Tarefa ficou"} sem responsável`);
 // Código do favorito. Roda NO PORTAL (não aqui): __PBC__ é trocado pelo endereço desta ferramenta.
 // Só consulta (nunca chama a mutation "portal") e usa visita:false para não marcar novidades como lidas.
